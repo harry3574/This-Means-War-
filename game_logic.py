@@ -5,6 +5,7 @@ from deck import create_deck, shuffle_deck, split_deck
 from card_utils import draw_card, compare_cards
 import json
 from pathlib import Path
+from database import save_game, load_game
 
 SAVE_FILE = "game_save.json"
 
@@ -31,12 +32,6 @@ def save_game(player_deck, enemy_deck, player_score, enemy_score, total_rounds, 
         json.dump(game_state, file, indent=4)
 '''
 
-def save_game(profile_id, player_deck, enemy_deck, player_score, enemy_score, total_rounds, player_wins, enemy_wins, ties, cards_played, win_streak, longest_win_streak, played_cards):
-    """Save the current game state to the SQLite database."""
-    from database import save_game as db_save_game  # Import from your database module
-    db_save_game(profile_id, player_deck, enemy_deck, player_score, enemy_score, total_rounds, 
-                 player_wins, enemy_wins, ties, cards_played, win_streak, longest_win_streak, played_cards)
-
 '''
 for .json
 def load_game():
@@ -49,12 +44,6 @@ def load_game():
 
     return game_state
 '''
-
-def load_game():
-    """Load the latest game state from the SQLite database."""
-    from database import load_game as db_load_game  # Import from your database module
-    return db_load_game()  # Returns the latest game state
-
 
 def show_peek(screen, player_deck, enemy_deck, cursor_pos, selected_pos):
     screen.fill(WHITE)
@@ -97,7 +86,7 @@ def show_peek(screen, player_deck, enemy_deck, cursor_pos, selected_pos):
 
     pygame.display.flip()
 
-def show_stats(screen, total_rounds, player_wins, enemy_wins, ties, player_deck, enemy_deck, cards_played, win_streak, longest_win_streak, played_cards, current_war, current_skirmish, player_advantage, enemy_advantage, score_to_beat):
+def show_stats(screen, total_rounds, player_wins, enemy_wins, ties, player_deck, enemy_deck, cards_played, win_streak, longest_win_streak, played_cards, current_war, current_skirmish, current_hand, player_advantage, enemy_advantage, score_to_beat):
     screen.fill(WHITE)
     y_offset = 50
 
@@ -115,6 +104,7 @@ def show_stats(screen, total_rounds, player_wins, enemy_wins, ties, player_deck,
         f"Most Common Card: {most_common_card(played_cards)}",
         f"Current War: {current_war}",
         f"Current Skirmish: {current_skirmish}",
+        f"Current Hand: {current_hand}",
         f"Player Advantage: {player_advantage}",
         f"Enemy Advantage: {enemy_advantage}",
         f"Score to Beat: {score_to_beat}"
@@ -193,6 +183,7 @@ def main_game_loop(profile_id, loaded_state=None):
         played_cards = loaded_state["played_cards"]
         current_war = loaded_state["current_war"]
         current_skirmish = loaded_state["current_skirmish"]
+        current_hand = loaded_state["current_hand"]
         player_advantage = loaded_state["player_advantage"]
         enemy_advantage = loaded_state["enemy_advantage"]
     else:
@@ -217,10 +208,11 @@ def main_game_loop(profile_id, loaded_state=None):
 
         current_war = 1
         current_skirmish = 1
+        current_hand = 1
         player_advantage = 0
         enemy_advantage = 0
 
-    # Calculate the score to beat for the current war
+    # Calculate the score to beat for the current skirmish
     score_to_beat = calculate_score_to_beat(current_war)
 
     cursor_pos = 0
@@ -271,8 +263,8 @@ def main_game_loop(profile_id, loaded_state=None):
                             player_advantage += calculate_advantage(player_card, enemy_card)
                             enemy_advantage += calculate_advantage(enemy_card, player_card)
 
-                            # Display skirmish result
-                            print(f"Skirmish {current_skirmish} of War {current_war}:")
+                            # Display hand result
+                            print(f"War {current_war} - Skirmish {current_skirmish} - Hand {current_hand}:")
                             print(f"Player Advantage: {player_advantage}")
                             print(f"Enemy Advantage: {enemy_advantage}")
                             print(f"Score to Beat: {score_to_beat}")
@@ -281,30 +273,46 @@ def main_game_loop(profile_id, loaded_state=None):
                             player_discard.append(player_card)
                             enemy_discard.append(enemy_card)
 
-                            # Check if skirmish is over
-                            if current_skirmish == 3:
-                                # Determine war winner
+                            # Check if skirmish is over (26 hands)
+                            if current_hand == 26:
+                                # Determine skirmish winner
                                 if player_advantage >= score_to_beat:
-                                    outcome = "You win this war!"
-                                    player_score += 1
+                                    outcome = "You win this skirmish!"
                                     player_wins += 1
                                     win_streak += 1
                                     if win_streak > longest_win_streak:
                                         longest_win_streak = win_streak
                                 else:
-                                    outcome = "Enemy wins this war!"
-                                    enemy_score += 1
+                                    outcome = "Enemy wins this skirmish!"
                                     enemy_wins += 1
                                     win_streak = 0
 
-                                # Reset for the next war
-                                current_war += 1
-                                current_skirmish = 1
+                                # Check if war is over (3 skirmishes)
+                                if current_skirmish == 3:
+                                    # Determine war winner
+                                    if player_wins > enemy_wins:
+                                        player_score += 1
+                                    elif player_wins < enemy_wins:
+                                        enemy_score += 1
+                                    else:
+                                        ties += 1
+
+                                    # Reset for the next war
+                                    current_war += 1
+                                    current_skirmish = 1
+                                    player_wins = 0
+                                    enemy_wins = 0
+                                else:
+                                    # Reset for the next skirmish
+                                    current_skirmish += 1
+
+                                # Reset for the next skirmish
+                                current_hand = 1
                                 player_advantage = 0
                                 enemy_advantage = 0
                                 score_to_beat = calculate_score_to_beat(current_war)
                             else:
-                                current_skirmish += 1
+                                current_hand += 1
 
                             total_rounds += 1
 
@@ -314,7 +322,7 @@ def main_game_loop(profile_id, loaded_state=None):
                     elif event.key == pygame.K_F5:  # Save game
                         save_game(profile_id, player_deck, enemy_deck, player_score, enemy_score, total_rounds, 
                                   player_wins, enemy_wins, ties, cards_played, win_streak, longest_win_streak, played_cards,
-                                  current_war, current_skirmish, player_advantage, enemy_advantage)
+                                  current_war, current_skirmish, current_hand, player_advantage, enemy_advantage)
                         print("Game saved!")
                     elif event.key == pygame.K_ESCAPE:  # Return to main menu
                         running = False
@@ -333,8 +341,8 @@ def main_game_loop(profile_id, loaded_state=None):
             draw_card(screen, 150, 200, player_deck[0], is_player=True)
             draw_card(screen, 450, 200, enemy_deck[0], is_player=False)
 
-        # Display war and skirmish info
-        war_info = f"War {current_war} - Skirmish {current_skirmish}"
+        # Display war, skirmish, and hand info
+        war_info = f"War {current_war} - Skirmish {current_skirmish} - Hand {current_hand}"
         text = font.render(war_info, True, BLACK)
         screen.blit(text, (WIDTH // 2 - text.get_width() // 2, 150))
 
@@ -347,7 +355,7 @@ def main_game_loop(profile_id, loaded_state=None):
         if peek_mode:
             show_peek(screen, player_deck, enemy_deck, cursor_pos, selected_pos)
         elif stats_mode:
-            show_stats(screen, total_rounds, player_wins, enemy_wins, ties, player_deck, enemy_deck, cards_played, win_streak, longest_win_streak, played_cards, current_war, current_skirmish, player_advantage, enemy_advantage, score_to_beat)
+            show_stats(screen, total_rounds, player_wins, enemy_wins, ties, player_deck, enemy_deck, cards_played, win_streak, longest_win_streak, played_cards, current_war, current_skirmish, current_hand, player_advantage, enemy_advantage, score_to_beat)
         else:
             small_font = pygame.font.Font(UNICODE_FONT, 24)
             text = small_font.render("Press 'P' to peek at both decks", True, BLACK)
