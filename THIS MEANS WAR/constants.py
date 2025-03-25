@@ -1,5 +1,3 @@
-import pygame
-
 # Screen dimensions
 WIDTH, HEIGHT = 1280, 720
 
@@ -11,6 +9,9 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 CYAN = (0, 255, 255)
+PASTEL_YELLOW = (255, 255, 153)
+PASTEL_CYAN = (153, 255, 255)
+PASTEL_RED = (255, 153, 153)
 
 # Fonts
 FONT_SIZE = 36
