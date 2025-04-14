@@ -58,4 +58,4 @@ PROFILE_EMOJIS = [
 
 
 # Load a Unicode-compatible font
-UNICODE_FONT = "./This-Means-War--proto/unifont_jp-16.0.02.otf"  # Replace with the path to your font file
+UNICODE_FONT = "./THIS MEANS WAR/unifont_jp-16.0.02.otf"  # Replace with the path to your font file

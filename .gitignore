@@ -1,3 +1,5 @@
 test_3D.py
 test_audio.py
 animations.py
+_pycache_/
+__pycache__/
