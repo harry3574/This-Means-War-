@@ -260,15 +260,6 @@ class SaveSelectionView(View):
         self.clear()
         self.manager.draw()
 
-
-import arcade
-from arcade import View, SpriteList, Sprite
-from typing import Optional, Dict
-from game.deck import Card
-from game.game_state import WarGameState
-from game.war_logic import WarLogic
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, UNICODE_FONT
-
 class GameView(View):
     def __init__(self):
         super().__init__()
@@ -345,8 +336,8 @@ class GameView(View):
         # Draw rank text
         arcade.Text(
             text=card.rank,
-            start_x=rank_x,
-            start_y=rank_y,
+            x=rank_x,
+            y=rank_y,
             color=card_color,
             font_size=24,
             font_name=UNICODE_FONT,
@@ -357,8 +348,8 @@ class GameView(View):
         # Draw suit text
         arcade.Text(
             text=card.suit,
-            start_x=suit_x,
-            start_y=suit_y,
+            x=suit_x,
+            y=suit_y,
             color=card_color,
             font_size=24,
             font_name=UNICODE_FONT,
@@ -485,8 +476,8 @@ class GameView(View):
         # Card rank text (top left)
         rank_text = arcade.Text(
             text=card.rank,
-            start_x=x - 30,
-            start_y=y + 30,  # Adjusted for better positioning
+            x=x - 30,
+            y=y + 30,  # Adjusted for better positioning
             color=arcade.color.RED if card.suit in ['♥', '♦'] else arcade.color.BLACK,
             font_size=24,
             font_name=UNICODE_FONT,
@@ -498,8 +489,8 @@ class GameView(View):
         # Card suit text (bottom right)
         suit_text = arcade.Text(
             text=card.suit,
-            start_x=x + 30,
-            start_y=y - 30,  # Adjusted for better positioning
+            x=x + 30,
+            y=y - 30,  # Adjusted for better positioning
             color=arcade.color.RED if card.suit in ['♥', '♦'] else arcade.color.BLACK,
             font_size=24,
             font_name=UNICODE_FONT,
