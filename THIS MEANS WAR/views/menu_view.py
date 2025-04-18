@@ -164,7 +164,7 @@ class ProfileSelectionView(View):
 def on_new_profile(self, event):
     """Input dialog for profile creation"""
     # Clear existing UI elements first
-    self.manager.clear()
+    self.manager.clean()
     
     # Create a vertical box for the dialog
     dialog_box = gui.UIBoxLayout(vertical=True)

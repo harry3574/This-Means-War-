@@ -1,3 +1,4 @@
+import random
 import arcade
 from arcade import View, Sprite, SpriteList, gui
 from typing import Optional, Dict, Any, List
@@ -260,489 +261,298 @@ class SaveSelectionView(View):
         self.clear()
         self.manager.draw()
 
+# game/views/game_view.py
+import arcade
+from arcade import View, Sprite, SpriteList, gui
+from typing import Optional, List, Dict, Any
+from dataclasses import dataclass
+from constants import *
+from game.deck import Deck, Card
+from game.game_state import WarGameState
+from game.war_logic import WarLogic
+from views.stats_view import StatsView
+from utils.tts import TTSHandler
+
+@dataclass
+class CardSprite:
+    """Wrapper for card display logic"""
+    card: Card
+    sprite: Sprite
+    face_up: bool = False
+
 class GameView(View):
-    def __init__(self):
+    def __init__(self, profile_id: Optional[int] = None, loaded_state: Optional[Dict] = None):
         super().__init__()
+        self.profile_id = profile_id
         self.game_state = WarGameState()
-        self.card_sprites = SpriteList()
         self.war_logic = WarLogic()
         self.tts = TTSHandler()
         
-        # Card positions for 1280x720 screen
-        self.player_card_pos = (SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2 + 100)
-        self.enemy_card_pos = (SCREEN_WIDTH // 2 + 150, SCREEN_HEIGHT // 2 - 100)
-        
-        # Initialize UI
-        self.manager = gui.UIManager()
-        self.manager.enable()
+        # Visual elements
+        self.card_sprites: List[CardSprite] = []
+        self.ui_manager = gui.UIManager()
         self.setup_ui()
-
-    def setup(self, loaded_state: Optional[Dict] = None):
-        """Initialize game state with proper card values"""
-        if loaded_state:
-            self.game_state.__dict__.update(loaded_state)
-        else:
-            # Initialize new game with proper card values
-            rank_values = {
-                '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8,
-                '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14
-            }
-            deck = [
-                Card(rank=rank, suit=suit, value=rank_values[rank])
-                for suit in ['♥', '♦', '♣', '♠']
-                for rank in rank_values.keys()
-            ]
-            self.war_logic.shuffle_deck(deck)
-            self.game_state.player_deck = deck[:26]
-            self.game_state.enemy_deck = deck[26:]
         
-        self._create_card_sprites()
+        # Game setup
+        if loaded_state:
+            self.load_state(loaded_state)
+        else:
+            self.initialize_new_game()
+        
+        # State tracking
+        self.current_outcome: Optional[str] = None
+        self.outcome_timer: float = 0
+        self.animation_state: Dict[str, Any] = {}
 
-    def _create_card_sprites(self):
-        """Create card sprites with proper positioning"""
+    def setup_ui(self):
+        """Initialize the UI elements"""
+        self.ui_manager.enable()
+        
+        # Create button panel
+        button_panel = gui.UIBoxLayout(vertical=False)
+        
+        # Peek button
+        peek_btn = gui.UIFlatButton(text="Peek", width=100)
+        peek_btn.on_click = self.on_peek_click
+        button_panel.add(peek_btn.with_padding(right=10))
+        
+        # Stats button
+        stats_btn = gui.UIFlatButton(text="Stats", width=100)
+        stats_btn.on_click = self.on_stats_click
+        button_panel.add(stats_btn.with_padding(right=10))
+        
+        # Draw button
+        draw_btn = gui.UIFlatButton(text="Draw", width=100)
+        draw_btn.on_click = self.on_draw_click
+        button_panel.add(draw_btn.with_padding(right=10))
+        
+        # Save button
+        save_btn = gui.UIFlatButton(text="Save", width=100)
+        save_btn.on_click = self.on_save_click
+        button_panel.add(save_btn)
+        
+        # Add panel to view
+        self.ui_manager.add(
+            gui.UIAnchorLayout(
+                anchor_x="center",
+                anchor_y="bottom",
+                child=button_panel,
+                align_y=50
+            )
+        )
+
+    def initialize_new_game(self):
+        """Start a fresh game session"""
+        deck = Deck()
+        deck.shuffle()
+        self.game_state.player_deck, self.game_state.enemy_deck = deck.split()
+        self.create_card_sprites()
+
+    def load_state(self, state: Dict):
+        """Load game from saved state"""
+        for key, value in state.items():
+            setattr(self.game_state, key, value)
+        self.create_card_sprites()
+
+    def create_card_sprites(self):
+        """Create visual representations of cards"""
         self.card_sprites.clear()
         
-        # Player card
+        # Player card (face up)
         if self.game_state.player_deck:
-            player_sprite = arcade.SpriteSolidColor(100, 150, arcade.color.WHITE)
-            player_sprite.position = self.player_card_pos
-            self.card_sprites.append(player_sprite)
-            self._add_card_text(self.game_state.player_deck[0], *self.player_card_pos)
+            player_card = self.game_state.player_deck[0]
+            sprite = self._create_card_sprite(player_card, 400, 200, face_up=True)
+            self.card_sprites.append(CardSprite(player_card, sprite, True))
         
-        # Enemy card
+        # Enemy card (face down unless in animation)
         if self.game_state.enemy_deck:
-            enemy_sprite = arcade.SpriteSolidColor(100, 150, arcade.color.WHITE)
-            enemy_sprite.position = self.enemy_card_pos
-            self.card_sprites.append(enemy_sprite)
-            self._add_card_text(self.game_state.enemy_deck[0], *self.enemy_card_pos)
+            enemy_card = self.game_state.enemy_deck[0]
+            sprite = self._create_card_sprite(enemy_card, 800, 200, face_up=False)
+            self.card_sprites.append(CardSprite(enemy_card, sprite, False))
 
-    def _add_card_text(self, card: Card, x: float, y: float):
-        """Draw card text elements at specified positions with proper coordinates"""
-        # Card background coordinates (center of card)
-        card_center_x = x
-        card_center_y = y
-        
-        # Rank position (top left quadrant)
-        rank_x = card_center_x - 30  # 30 pixels left of center
-        rank_y = card_center_y + 30  # 30 pixels above center
-        
-        # Suit position (bottom right quadrant)
-        suit_x = card_center_x + 30  # 30 pixels right of center
-        suit_y = card_center_y - 30  # 30 pixels below center
-        
-        # Determine card color based on suit
-        card_color = arcade.color.RED if card.suit in ['♥', '♦'] else arcade.color.BLACK
-        
-        # Draw rank text
-        arcade.Text(
-            text=card.rank,
-            x=rank_x,
-            y=rank_y,
-            color=card_color,
-            font_size=24,
-            font_name=UNICODE_FONT,
-            anchor_x="center",
-            anchor_y="center"
-        ).draw()
-        
-        # Draw suit text
-        arcade.Text(
-            text=card.suit,
-            x=suit_x,
-            y=suit_y,
-            color=card_color,
-            font_size=24,
-            font_name=UNICODE_FONT,
-            anchor_x="center",
-            anchor_y="center"
-        ).draw()
+    def _create_card_sprite(self, card: Card, x: float, y: float, face_up: bool) -> Sprite:
+        """Helper to create a card sprite"""
+        # In a real implementation, you'd use actual card images
+        sprite = arcade.SpriteSolidColor(
+            width=120, 
+            height=180,
+            color=arcade.color.WHITE if face_up else arcade.color.BLUE
+        )
+        sprite.position = x, y
+        return sprite
 
     def on_draw(self):
         arcade.start_render()
         
-        # Draw scores
+        # Draw game info
+        self.draw_game_info()
+        
+        # Draw cards
+        for card_sprite in self.card_sprites:
+            card_sprite.sprite.draw_hit_box()
+            
+            # Draw card details if face up
+            if card_sprite.face_up:
+                arcade.draw_text(
+                    card_sprite.card.rank,
+                    card_sprite.sprite.center_x - 30,
+                    card_sprite.sprite.center_y,
+                    arcade.color.RED if card_sprite.card.suit in ['♥', '♦'] else arcade.color.BLACK,
+                    24,
+                    anchor_x="center"
+                )
+                arcade.draw_text(
+                    card_sprite.card.suit,
+                    card_sprite.sprite.center_x + 30,
+                    card_sprite.sprite.center_y,
+                    arcade.color.RED if card_sprite.card.suit in ['♥', '♦'] else arcade.color.BLACK,
+                    24,
+                    anchor_x="center"
+                )
+        
+        # Draw outcome message if any
+        if self.current_outcome:
+            arcade.draw_text(
+                self.current_outcome,
+                self.window.width // 2,
+                self.window.height // 2 + 100,
+                arcade.color.BLACK,
+                36,
+                anchor_x="center"
+            )
+        
+        # Draw UI
+        self.ui_manager.draw()
+
+    def draw_game_info(self):
+        """Render all game status information"""
+        # Scores
         arcade.draw_text(
             f"Player: {self.game_state.player_score}",
-            SCREEN_WIDTH // 4,
-            SCREEN_HEIGHT - 50,
-            arcade.color.BLUE,
-            24,
-            anchor_x="center",
-            font_name=UNICODE_FONT
+            100, self.window.height - 50,
+            arcade.color.GREEN, 24
         )
-        
         arcade.draw_text(
             f"Enemy: {self.game_state.enemy_score}",
-            SCREEN_WIDTH * 3 // 4,
-            SCREEN_HEIGHT - 50,
-            arcade.color.RED,
-            24,
-            anchor_x="center",
-            font_name=UNICODE_FONT
+            self.window.width - 150, self.window.height - 50,
+            arcade.color.RED, 24
         )
         
-        # Draw war info
+        # War progress
         arcade.draw_text(
             f"War {self.game_state.current_war} - "
             f"Skirmish {self.game_state.current_skirmish} - "
             f"Hand {self.game_state.current_hand}",
-            SCREEN_WIDTH // 2,
-            SCREEN_HEIGHT - 100,
-            arcade.color.BLACK,
-            20,
-            anchor_x="center",
-            font_name=UNICODE_FONT
-        )
-        
-        # Draw cards
-        self.card_sprites.draw()
-        self.manager.draw()
-
-    def on_key_press(self, key, modifiers):
-        if key == arcade.key.SPACE:
-            self.play_hand()
-        elif key == arcade.key.P:
-            self.on_peek(None)
-        elif key == arcade.key.ESCAPE:
-            self.show_pause_menu(None)
-        elif key == arcade.key.F3:
-            self.announce_state()
-
-    def play_hand(self):
-        """Play a single hand of war"""
-        try:
-            result = self.war_logic.resolve_hand(self.game_state)
-            
-            if result == "game_over":
-                self.handle_game_over()
-            else:
-                self._create_card_sprites()
-            
-            # Auto-save if needed
-            if hasattr(self, 'current_profile_id'):
-                self._save_game_state()
-                
-        except Exception as e:
-            print(f"Error playing hand: {e}")
-
-    def _save_game_state(self):
-        """Save current game state"""
-        if hasattr(self, 'current_profile_id'):
-            db.save_game_state(
-                self.current_profile_id,
-                {
-                    'player_deck': [c.__dict__ for c in self.game_state.player_deck],
-                    'enemy_deck': [c.__dict__ for c in self.game_state.enemy_deck],
-                    'player_score': self.game_state.player_score,
-                    'enemy_score': self.game_state.enemy_score,
-                    'current_war': self.game_state.current_war,
-                    'current_skirmish': self.game_state.current_skirmish,
-                    'current_hand': self.game_state.current_hand,
-                    'player_advantage': self.game_state.player_advantage,
-                    'enemy_advantage': self.game_state.enemy_advantage
-                }
-            )
-
-    def handle_game_over(self):
-        """Handle game end condition"""
-        from views.menu_view import EndGameView
-        
-        if self.game_state.player_score > self.game_state.enemy_score:
-            winner = "Player"
-        elif self.game_state.player_score < self.game_state.enemy_score:
-            winner = "Enemy"
-        else:
-            winner = "Tie"
-        
-        end_view = EndGameView(winner, self.game_state)
-        self.window.show_view(end_view)
-
-    def on_draw(self):
-        arcade.start_render()
-        
-        # Draw all sprites
-        self.card_sprites.draw()
-        
-        # Draw all text objects
-        for text in self.card_texts:
-            text.draw()
-        
-        # Draw other UI elements
-        self.manager.draw()
-    
-
-    def _add_card_text(self, card: Card, x: float, y: float):
-        """Helper to create card text elements with proper positioning"""
-        # Card rank text (top left)
-        rank_text = arcade.Text(
-            text=card.rank,
-            x=x - 30,
-            y=y + 30,  # Adjusted for better positioning
-            color=arcade.color.RED if card.suit in ['♥', '♦'] else arcade.color.BLACK,
-            font_size=24,
-            font_name=UNICODE_FONT,
-            anchor_x="center",
-            anchor_y="center"
-        )
-        rank_text.draw()
-
-        # Card suit text (bottom right)
-        suit_text = arcade.Text(
-            text=card.suit,
-            x=x + 30,
-            y=y - 30,  # Adjusted for better positioning
-            color=arcade.color.RED if card.suit in ['♥', '♦'] else arcade.color.BLACK,
-            font_size=24,
-            font_name=UNICODE_FONT,
-            anchor_x="center",
-            anchor_y="center"
-        )
-        suit_text.draw()
-    
-    
-    def setup_ui(self):
-        """Create in-game UI elements without UIAnchorWidget"""
-        self.manager.clear()
-        
-        # Create a main layout that fills the screen
-        main_layout = gui.UIBoxLayout(vertical=False)
-        
-        # Left spacer
-        left_spacer = gui.UISpace(width=20)
-        main_layout.add(left_spacer)
-        
-        # Center content area
-        center_layout = gui.UIBoxLayout(vertical=True)
-        
-        # Top spacer for pause button
-        top_spacer = gui.UISpace(height=20)
-        center_layout.add(top_spacer)
-        
-        # Pause button row
-        pause_row = gui.UIBoxLayout(vertical=False)
-        pause_row.add(gui.UISpace(width=self.window.width - 100))  # Push button to right
-        pause_btn = gui.UIFlatButton(text="≡", width=40, height=40)
-        pause_btn.on_click = self.show_pause_menu
-        pause_row.add(pause_btn)
-        center_layout.add(pause_row)
-        
-        # Middle spacer
-        center_layout.add(gui.UISpace(height=self.window.height - 200))
-        
-        # Peek button row
-        peek_btn = gui.UIFlatButton(text="👁️ Peek", width=100)
-        peek_btn.on_click = self.on_peek
-        center_layout.add(peek_btn)
-        
-        # Add center layout to main layout
-        main_layout.add(center_layout)
-        
-        # Right spacer
-        right_spacer = gui.UISpace(width=20)
-        main_layout.add(right_spacer)
-        
-        self.manager.add(main_layout)
-
-    def on_draw(self):
-        self.clear()
-        
-        # Draw scores
-        arcade.draw_text(
-            f"Player: {self.game_state.player_score}",
-            self.window.width // 4,
-            self.window.height - 50,
-            arcade.color.BLUE,
-            24,
-            anchor_x="center"
-        )
-        
-        arcade.draw_text(
-            f"Enemy: {self.game_state.enemy_score}",
-            self.window.width * 3 // 4,
-            self.window.height - 50,
-            arcade.color.RED,
-            24,
-            anchor_x="center"
-        )
-        
-        # Draw war info
-        arcade.draw_text(
-            f"War {self.game_state.current_war} "
-            f"- Skirmish {self.game_state.current_skirmish} "
-            f"- Hand {self.game_state.current_hand}",
             self.window.width // 2,
-            self.window.height - 100,
-            arcade.color.BLACK,
-            20,
+            self.window.height - 50,
+            arcade.color.BLACK, 24,
             anchor_x="center"
         )
         
-        # Draw advantage
+        # Advantage
         arcade.draw_text(
             f"Advantage: {self.game_state.player_advantage}/{self.game_state.score_to_beat}",
             self.window.width // 2,
-            100,
-            GREEN if self.game_state.player_advantage >= self.game_state.score_to_beat else RED,
-            24,
+            self.window.height - 80,
+            arcade.color.GREEN if self.game_state.player_advantage >= self.game_state.score_to_beat 
+            else arcade.color.RED,
+            20,
             anchor_x="center"
         )
-        
-        # Draw cards
-        self.card_sprites.draw()
-        self.manager.draw()
 
-    def on_key_press(self, key, modifiers):
-        if key == arcade.key.SPACE:
-            self.play_hand()
-        elif key == arcade.key.P:
-            self.on_peek(None)
-        elif key == arcade.key.ESCAPE:
-            self.show_pause_menu(None)
-        elif key == arcade.key.F3:  # TTS
-            self.announce_state()
+    def on_update(self, delta_time: float):
+        """Handle animations and timed events"""
+        if self.current_outcome:
+            self.outcome_timer -= delta_time
+            if self.outcome_timer <= 0:
+                self.current_outcome = None
+                
+        # Update any active animations
+        self.update_animations(delta_time)
 
-    def play_hand(self):
-        """Play a single hand of war"""
-        # Initialize WarLogic with the current seed if you have one
-        war_logic = WarLogic(seed=self.game_state.current_seed)  # Assuming you store the seed
+    def update_animations(self, delta_time: float):
+        """Process any running animations"""
+        # This would handle card flip/draw animations in a full implementation
+        pass
+
+    def on_draw_click(self, event):
+        """Handle draw button click"""
+        if self.current_outcome:
+            return  # Don't allow draws during outcome display
+            
+        result = self.war_logic.resolve_hand(self.game_state)
+        self.handle_resolution(result)
+
+    def handle_resolution(self, result: str):
+        """Process the outcome of a hand resolution"""
+        outcomes = {
+            "continue": None,
+            "player_win": "You won this hand!",
+            "enemy_win": "Enemy won this hand!",
+            "skirmish_complete": "Skirmish complete!",
+            "war_complete": "War complete!",
+            "game_over": "Game Over!"
+        }
         
-        try:
-            result = war_logic.resolve_hand(self.game_state)
+        if result in outcomes:
+            self.current_outcome = outcomes[result]
+            self.outcome_timer = 2.0  # Show message for 2 seconds
             
-            if result == "game_over":
-                self.handle_game_over()
-            elif result in ["skirmish_complete", "war_complete"]:
-                # Update UI to reflect new skirmish/war state
-                self._update_game_display()
-                
-                # Optional: Show a message about the completed skirmish/war
-                if result == "war_complete":
-                    self.show_message(f"War {self.game_state.current_war-1} completed!")
-                else:
-                    self.show_message("Skirmish completed!")
-            
-            # Update visuals
-            self._create_card_sprites()
-            self._update_text_objects()
-            
-            # Auto-save if needed
-            if hasattr(self, 'current_profile_id'):
-                self._save_game_state()
-                
-        except Exception as e:
-            print(f"Error resolving hand: {e}")
-            # Fallback or error handling
+        # Update card display
+        self.create_card_sprites()
+        
+        # Special handling for game over
+        if result == "game_over":
+            self.handle_game_over()
 
     def handle_game_over(self):
-        """Transition to game over view"""
-        from views.menu_view import EndGameView
-        
-        if self.game_state.player_score > self.game_state.enemy_score:
-            winner = "Player"
-        elif self.game_state.player_score < self.game_state.enemy_score:
-            winner = "Enemy"
-        else:
-            winner = "Tie"
-        
-        end_view = EndGameView(winner, self.game_state)
-        self.window.show_view(end_view)
+        """Transition to game over state"""
+        # In a full implementation, this would show a game over screen
+        #from views.menu_view import 
+        #self.window.show_view(Menu())
 
-    def announce_state(self):
-        """TTS announcement of current game state"""
-        msg = (
-            f"War {self.game_state.current_war}, "
-            f"Skirmish {self.game_state.current_skirmish}, "
-            f"Hand {self.game_state.current_hand}. "
-            f"Score: Player {self.game_state.player_score}, "
-            f"Enemy {self.game_state.enemy_score}. "
-            f"Advantage: {self.game_state.player_advantage} "
-            f"out of {self.game_state.score_to_beat} needed."
-        )
-        self.tts.speak(msg)
-
-    def on_peek(self, event):
-        """Show peek view"""
-        from views.peek_view import PeekView
+    def on_peek_click(self, event):
+        """Switch to peek view"""
         peek_view = PeekView(self.game_state)
         peek_view.previous_view = self
         self.window.show_view(peek_view)
 
-    def show_pause_menu(self, event):
-        """Display pause menu without UIAnchorWidget"""
-        self.manager.clear()
-        
-        # Create overlay background
-        overlay_bg = arcade.SpriteSolidColor(
-            self.window.width, 
-            self.window.height, 
-            arcade.color.BLACK
-        )
-        overlay_bg.color = (0, 0, 0, 200)  # Semi-transparent
-        overlay_bg.position = self.window.width // 2, self.window.height // 2
-        
-        # Create menu layout
-        menu_layout = gui.UIBoxLayout(vertical=True)
-        
-        if self.current_profile_id:
-            save_btn = gui.UIFlatButton(text="💾 Save", width=200)
-            save_btn.on_click = self.on_save_game
-            menu_layout.add(save_btn)
-            menu_layout.add(gui.UISpace(height=10))
-        
-        stats_btn = gui.UIFlatButton(text="📊 Stats", width=200)
-        stats_btn.on_click = self.on_show_stats
-        menu_layout.add(stats_btn)
-        menu_layout.add(gui.UISpace(height=10))
-        
-        quit_btn = gui.UIFlatButton(text="🚪 Quit", width=200)
-        quit_btn.on_click = self.on_quit
-        menu_layout.add(quit_btn)
-        
-        # Create a centered layout using spacers
-        outer_layout = gui.UIBoxLayout(vertical=True)
-        outer_layout.add(gui.UISpace(height=self.window.height // 3))
-        
-        mid_layout = gui.UIBoxLayout(vertical=False)
-        mid_layout.add(gui.UISpace(width=self.window.width // 3))
-        mid_layout.add(menu_layout)
-        
-        outer_layout.add(mid_layout)
-        
-        self.manager.add(outer_layout)
-        
-        # Store background reference for drawing
-        self.pause_overlay_bg = overlay_bg
-    
-    def on_save_game(self, event):
-        """Handle save game"""
-        if self.current_profile_id:
-            save_id = db.save_game_state(
-                self.current_profile_id,
-                self.game_state.__dict__
-            )
-            self.manager.clear()
-            self.setup_ui()
-            msg = f"Game saved as ID {save_id}"
-            self.tts.speak(msg)
-            
-            # Show confirmation
-            confirm = gui.UIMessageBox(
-                width=300,
-                height=150,
-                title="Saved",
-                message=msg,
-                buttons=["OK"]
-            )
-            self.manager.add(confirm)
-
-    def on_show_stats(self, event):
-        """Show statistics view"""
-        from views.stats_view import StatsView
-        self.manager.clear()
+    def on_stats_click(self, event):
+        """Switch to stats view"""
         stats_view = StatsView(self.game_state)
         stats_view.previous_view = self
         self.window.show_view(stats_view)
 
-    def on_quit(self, event):
-        """Return to main menu"""
-        self.window.show_view(ProfileSelectionView())
+    def on_save_click(self, event):
+        """Save current game state"""
+        if self.profile_id:
+            from database import db
+            db.save_game_state(self.profile_id, self.game_state.__dict__)
+            self.current_outcome = "Game Saved!"
+            self.outcome_timer = 1.5
+
+    def on_key_press(self, key, modifiers):
+        """Handle keyboard shortcuts"""
+        if key == arcade.key.SPACE:
+            self.on_draw_click(None)
+        elif key == arcade.key.P:
+            self.on_peek_click(None)
+        elif key == arcade.key.S:
+            self.on_stats_click(None)
+        elif key == arcade.key.F5:
+            self.on_save_click(None)
+        elif key == arcade.key.F3:
+            self.announce_state()
+
+    def announce_state(self):
+        """Use TTS to announce game state"""
+        message = (
+            f"War {self.game_state.current_war}, "
+            f"Skirmish {self.game_state.current_skirmish}, "
+            f"Hand {self.game_state.current_hand}. "
+            f"Player score: {self.game_state.player_score}, "
+            f"Enemy score: {self.game_state.enemy_score}. "
+            f"Advantage: {self.game_state.player_advantage} "
+            f"out of {self.game_state.score_to_beat} needed."
+        )
+        self.tts.speak(message)
