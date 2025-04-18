@@ -1,149 +1,148 @@
 import arcade
-from arcade import View, SpriteList, Sprite, gui
-from typing import Optional
-from game.deck import Card
-from game.game_state import WarGameState
-from constants import *
+from game.war_game import WarGame
 
-class PeekView(View):
-    def __init__(self, game_state: WarGameState):
+SCREEN_WIDTH = 1024
+SCREEN_HEIGHT = 768
+CARD_WIDTH = 80
+CARD_HEIGHT = 120
+
+class GameView(arcade.View):
+    def __init__(self):
         super().__init__()
-        self.game_state = game_state
-        self.cursor_pos = 0
-        self.selected_pos: Optional[int] = None
-        self.scroll_offset = 0
-        self.visible_cards = 5
-        self.card_sprites = SpriteList()
+        self.game = WarGame()
+        self.showing_battle = False
+        self.player_card = None
+        self.ai_card = None
+        self.button_pressed = False  # To prevent multiple clicks
+        self.card_back = arcade.load_texture(":resources:images/cards/cardBack_red2.png")  # Built-in card back
         
-        # UI Manager
-        self.manager = gui.UIManager()
-        self.manager.enable()
-        
-        # Back button
-        back_button = gui.UIFlatButton(text="Exit Peek", width=200)
-        back_button.on_click = self.on_back_click
-        self.manager.add(
-            gui.UIAnchorWidget(
-                anchor_x="center",
-                anchor_y="bottom",
-                child=back_button,
-                align_y=20
-            )
-        )
-        
-        self.setup_card_sprites()
-    
-    def setup_card_sprites(self):
-        """Create sprite representations of cards"""
-        self.card_sprites.clear()
-        card_width, card_height = 100, 150
-        spacing = 20
-        
-        # Player cards
-        for i in range(self.scroll_offset, min(len(self.game_state.player_deck), self.scroll_offset + self.visible_cards)):
-            card = self.game_state.player_deck[i]
-            x = 50 + (i - self.scroll_offset) * (card_width + spacing)
-            y = 300
-            
-            # Create card background
-            bg_color = (
-                PASTEL_CYAN if i == self.selected_pos else
-                PASTEL_YELLOW if i == self.cursor_pos else
-                WHITE
-            )
-            
-            card_sprite = arcade.SpriteSolidColor(card_width, card_height, bg_color)
-            card_sprite.position = x + card_width/2, y + card_height/2
-            self.card_sprites.append(card_sprite)
-            
-            # Add card text
-            self.card_sprites.append(self._create_text_sprite(
-                card.rank, x + 10, y + 10, 
-                RED if card.suit in ['♥', '♦'] else BLACK
-            ))
-            
-        # Enemy cards (simplified)
-        for i in range(self.scroll_offset, min(len(self.game_state.enemy_deck), self.scroll_offset + self.visible_cards)):
-            card = self.game_state.enemy_deck[i]
-            x = 50 + (i - self.scroll_offset) * (card_width + spacing)
-            y = 150
-            
-            card_sprite = arcade.SpriteSolidColor(card_width, card_height, WHITE)
-            card_sprite.position = x + card_width/2, y + card_height/2
-            self.card_sprites.append(card_sprite)
-            
-            # Only show enemy card backs unless hovered
-            if i == self.cursor_pos:
-                self.card_sprites.append(self._create_text_sprite(
-                    card.rank, x + 10, y + 10, 
-                    RED if card.suit in ['♥', '♦'] else BLACK
-                ))
-            else:
-                # Draw card back pattern
-                pass
-    
-    def _create_text_sprite(self, text: str, x: float, y: float, color) -> Sprite:
-        """Helper to create text as sprites for batch drawing"""
-        label = arcade.Text(
-            text=text,
-            start_x=x,
-            start_y=y,
-            color=color,
-            font_size=18
-        )
-        # Note: Arcade doesn't easily support Text in SpriteLists
-        # This is a simplified approach - for production, consider:
-        # 1. Using custom shaders
-        # 2. Drawing text separately
-        # 3. Using texture-based text rendering
-        return label  # This won't actually work as a sprite - needs refinement
-    
     def on_draw(self):
-        arcade.start_render()
-        self.card_sprites.draw()
-        self.manager.draw()
         
-        # Draw labels
-        arcade.draw_text("Enemy Deck:", 50, 400, BLACK, 24)
-        arcade.draw_text("Your Deck:", 50, 200, BLACK, 24)
-        
-        # Draw instructions
-        arcade.draw_text(
-            "Use ARROWS to navigate, ENTER to select, ESC to exit",
-            50, 50, BLACK, 16
+        # Draw background
+        arcade.draw_rect_filled(
+            arcade.rect.XYWH(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, SCREEN_WIDTH, SCREEN_HEIGHT),
+            arcade.color.FOREST_GREEN
         )
+        
+        # Draw face-down cards (before battle)
+        if not self.showing_battle:
+            # Player's face-down card (brown back)
+            arcade.draw_texture_rect(
+                SCREEN_WIDTH/2 - 150, 250, 
+                CARD_WIDTH, CARD_HEIGHT,
+                self.card_back
+            )
+            
+            # AI's face-down card (brown back)
+            arcade.draw_texture_rect(
+                SCREEN_WIDTH/2 + 150, 250, 
+                CARD_WIDTH, CARD_HEIGHT,
+                self.card_back
+            )
+        
+        # Draw revealed cards (during battle)
+        else:
+            # Player's revealed card
+            arcade.draw_rect_filled(
+                arcade.rect.XYWH(SCREEN_WIDTH/2 - 150, 250, CARD_WIDTH, CARD_HEIGHT),
+                arcade.color.WHITE
+            )
+            arcade.draw_text(
+                f"{self.player_card.value}{self.player_card.suit}",
+                SCREEN_WIDTH/2 - 150, 250,
+                arcade.color.BLACK, 20,
+                align="center", anchor_x="center", anchor_y="center"
+            )
+            
+            # AI's revealed card
+            arcade.draw_rect_filled(
+                arcade.rect.XYWH(SCREEN_WIDTH/2 + 150, 250, CARD_WIDTH, CARD_HEIGHT),
+                arcade.color.WHITE
+            )
+            arcade.draw_text(
+                f"{self.ai_card.value}{self.ai_card.suit}",
+                SCREEN_WIDTH/2 + 150, 250,
+                arcade.color.BLACK, 20,
+                align="center", anchor_x="center", anchor_y="center"
+            )
+        
+        # Draw reveal button (only when cards are face-down)
+        if not self.showing_battle:
+            button_color = arcade.color.RED if not self.button_pressed else arcade.color.DARK_RED
+            arcade.draw_rect_filled(
+                arcade.rect.XYWH(SCREEN_WIDTH/2, 100, 200, 50),
+                button_color
+            )
+            arcade.draw_text(
+                "Reveal Cards (SPACE)",
+                SCREEN_WIDTH/2, 100,
+                arcade.color.WHITE, 20,
+                align="center", anchor_x="center", anchor_y="center"
+            )
+        
+        # Draw peek button
+        arcade.draw_rect_filled(
+            arcade.rect.XYWH(SCREEN_WIDTH - 150, 50, 200, 50),
+            arcade.color.BLUE
+        )
+        arcade.draw_text(
+            "Peek Hand",
+            SCREEN_WIDTH - 150, 50,
+            arcade.color.WHITE, 16,
+            align="center", anchor_x="center", anchor_y="center"
+        )
+        
+        # Draw card counts
+        arcade.draw_text(
+            f"Your cards: {len(self.game.player_hand)}",
+            50, SCREEN_HEIGHT - 50,
+            arcade.color.WHITE, 20
+        )
+        arcade.draw_text(
+            f"AI cards: {len(self.game.ai_hand)}",
+            SCREEN_WIDTH - 200, SCREEN_HEIGHT - 50,
+            arcade.color.WHITE, 20
+        )
+        
+        # Draw battle history (last 3 events)
+        for i, event in enumerate(self.game.battle_history[-3:]):
+            arcade.draw_text(
+                event, 50, 400 + i * 30,
+                arcade.color.WHITE, 16
+            )
+    
+    def on_mouse_press(self, x, y, button, modifiers):
+        # Check reveal button (only when cards are face-down)
+        if (not self.showing_battle and not self.button_pressed and
+            SCREEN_WIDTH/2 - 100 <= x <= SCREEN_WIDTH/2 + 100 and 
+            75 <= y <= 125):
+            self.reveal_cards()
+        
+        # Check peek button
+        elif (SCREEN_WIDTH - 250 <= x <= SCREEN_WIDTH - 50) and (25 <= y <= 75):
+            self.window.show_view("PeekView")
     
     def on_key_press(self, key, modifiers):
-        if key == arcade.key.UP:
-            self.cursor_pos = max(0, self.cursor_pos - 1)
-        elif key == arcade.key.DOWN:
-            self.cursor_pos = min(len(self.game_state.player_deck) - 1, self.cursor_pos + 1)
-        elif key == arcade.key.LEFT:
-            if self.cursor_pos > 0:
-                self.cursor_pos -= 1
-                if self.cursor_pos < self.scroll_offset:
-                    self.scroll_offset = max(0, self.cursor_pos)
-        elif key == arcade.key.RIGHT:
-            if self.cursor_pos < len(self.game_state.player_deck) - 1:
-                self.cursor_pos += 1
-                if self.cursor_pos >= self.scroll_offset + self.visible_cards:
-                    self.scroll_offset = min(
-                        len(self.game_state.player_deck) - self.visible_cards,
-                        self.cursor_pos - self.visible_cards + 1
-                    )
-        elif key == arcade.key.ENTER:
-            if self.selected_pos is None:
-                self.selected_pos = self.cursor_pos
-            else:
-                # Swap cards
-                self.game_state.player_deck[self.selected_pos], self.game_state.player_deck[self.cursor_pos] = (
-                    self.game_state.player_deck[self.cursor_pos], self.game_state.player_deck[self.selected_pos]
-                )
-                self.selected_pos = None
-        elif key == arcade.key.ESCAPE:
-            self.window.show_view(self.previous_view)
-        
-        self.setup_card_sprites()
+        # Spacebar to reveal cards
+        if key == arcade.key.SPACE and not self.showing_battle and not self.button_pressed:
+            self.reveal_cards()
     
-    def on_back_click(self, event):
-        self.window.show_view(self.previous_view)
+    def reveal_cards(self):
+        """Handle card revealing logic"""
+        self.button_pressed = True
+        self.player_card = self.game.player_hand[0] if self.game.player_hand else None
+        self.ai_card = self.game.ai_hand[0] if self.game.ai_hand else None
+        self.showing_battle = True
+        
+        # Schedule battle resolution after 2 seconds
+        arcade.schedule(self.resolve_battle, 2.0)
+    
+    def resolve_battle(self, delta_time):
+        """Resolve the battle after cards are revealed"""
+        self.game.resolve_battle()
+        self.showing_battle = False
+        self.button_pressed = False
+        
+        if self.game.is_game_over():
+            winner = self.game.get_winner()
+            # self.window.show_view(ResultView(winner))

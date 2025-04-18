@@ -1,24 +1,10 @@
 import arcade
-from views.menu_view import ProfileSelectionView
-from utils.database import db
-from constants import SCREEN_HEIGHT, SCREEN_WIDTH, SCREEN_TITLE
-
-class WarGame(arcade.Window):
-    def __init__(self):
-        super().__init__(
-            width=SCREEN_WIDTH,
-            height=SCREEN_HEIGHT,
-            title=SCREEN_TITLE
-        )
-        # Initialize database
-        db._ensure_db_exists()
-        
-    def setup(self):
-        self.show_view(ProfileSelectionView())
+from views.game_view import GameView
 
 def main():
-    window = WarGame()
-    window.setup()
+    window = arcade.Window(1024, 768, "War Card Game")
+    game_view = GameView()
+    window.show_view(game_view)
     arcade.run()
 
 if __name__ == "__main__":
