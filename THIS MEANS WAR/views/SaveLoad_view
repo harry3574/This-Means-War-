@@ -1,0 +1,126 @@
+import random
+import arcade
+from utils.saves import GameSaver
+from utils.constant import SCREEN_WIDTH, SCREEN_HEIGHT, PROFILE_EMOJIS
+
+class ProfileView(arcade.View):
+    def __init__(self):
+        super().__init__()
+        self.saver = GameSaver()
+        self.profiles = self.saver.list_profiles()
+        self.selected_index = 0
+        self.new_profile_name = ""
+        self.mode = "select"  # "select" or "create"
+        
+    def on_draw(self):
+        arcade.start_render()
+        
+        # Title
+        arcade.draw_text(
+            "SELECT PROFILE" if self.mode == "select" else "CREATE PROFILE",
+            SCREEN_WIDTH/2, SCREEN_HEIGHT - 50,
+            arcade.color.WHITE, 30, anchor_x="center"
+        )
+        
+        if self.mode == "select":
+            # List profiles
+            for i, profile in enumerate(self.profiles):
+                color = arcade.color.GOLD if i == self.selected_index else arcade.color.WHITE
+                arcade.draw_text(
+                    f"{profile['emoji']} {profile['name']}",
+                    SCREEN_WIDTH/2, SCREEN_HEIGHT - 120 - i*40,
+                    color, 24, anchor_x="center"
+                )
+                
+            # Instructions
+            arcade.draw_text(
+                "ENTER: Select | C: Create New | DEL: Delete",
+                SCREEN_WIDTH/2, 50,
+                arcade.color.LIGHT_GRAY, 18, anchor_x="center"
+            )
+        else:
+            # Profile creation UI
+            arcade.draw_text(
+                "Enter Profile Name:",
+                SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 30,
+                arcade.color.WHITE, 24, anchor_x="center"
+            )
+            
+            arcade.draw_text(
+                self.new_profile_name,
+                SCREEN_WIDTH/2, SCREEN_HEIGHT/2,
+                arcade.color.WHITE, 28, anchor_x="center"
+            )
+            
+            # Random emoji preview
+            emoji = self._predict_emoji(self.new_profile_name)
+            if emoji:
+                arcade.draw_text(
+                    f"Your emoji will be: {emoji}",
+                    SCREEN_WIDTH/2, SCREEN_HEIGHT/2 - 50,
+                    arcade.color.LIGHT_GRAY, 20, anchor_x="center"
+                )
+                
+            # Instructions
+            arcade.draw_text(
+                "ENTER: Confirm | ESC: Cancel",
+                SCREEN_WIDTH/2, 50,
+                arcade.color.LIGHT_GRAY, 18, anchor_x="center"
+            )
+    
+    def _predict_emoji(self, name: str) -> str:
+        """Predict what emoji would be assigned to this name"""
+        if not name:
+            return ""
+        random.seed(hash(name))  # Same name will always get same emoji
+        return random.choice(PROFILE_EMOJIS)
+    
+    def on_key_press(self, key, modifiers):
+        if self.mode == "select":
+            if key == arcade.key.DOWN:
+                self.selected_index = min(self.selected_index + 1, len(self.profiles)-1)
+            elif key == arcade.key.UP:
+                self.selected_index = max(self.selected_index - 1, 0)
+            elif key == arcade.key.ENTER and self.profiles:
+                self._select_profile()
+            elif key == arcade.key.C:
+                self.mode = "create"
+                self.new_profile_name = ""
+            elif key == arcade.key.DELETE and self.profiles:
+                self._delete_profile()
+        else:  # create mode
+            if key == arcade.key.ENTER and self.new_profile_name:
+                self._create_profile()
+            elif key == arcade.key.ESCAPE:
+                self.mode = "select"
+            elif key == arcade.key.BACKSPACE:
+                self.new_profile_name = self.new_profile_name[:-1]
+            elif hasattr(key, "char") and key.char:
+                self.new_profile_name += key.char
+    
+    def _select_profile(self):
+        profile = self.profiles[self.selected_index]
+        self.saver.set_current_profile(profile['id'])
+        # Transition to main menu or game view
+        from views.menu_view import MenuView  # Import here to avoid circular imports
+        self.window.show_view(MenuView())
+    
+    def _create_profile(self):
+        success, message = self.saver.create_profile(self.new_profile_name)
+        if success:
+            self.profiles = self.saver.list_profiles()  # Refresh list
+            self.mode = "select"
+            # Auto-select the new profile
+            for i, p in enumerate(self.profiles):
+                if p['name'] == self.new_profile_name:
+                    self.selected_index = i
+                    break
+        else:
+            # Show error message (you could add a message display system)
+            print(message)
+    
+    def _delete_profile(self):
+        profile = self.profiles[self.selected_index]
+        if self.saver.delete_profile(profile['id']):
+            self.profiles = self.saver.list_profiles()  # Refresh list
+            self.selected_index = min(self.selected_index, len(self.profiles)-1)
