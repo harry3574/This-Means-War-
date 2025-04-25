@@ -1,6 +1,9 @@
+# /utils/window.py
 import arcade
 from views.game_view import GameView
 from views.peek_view import PeekView
+from views.profile_view import ProfileView
+from views.menu_view import MenuView
 from utils.constant import *
 
 class WarGameWindow(arcade.Window):
@@ -11,16 +14,21 @@ class WarGameWindow(arcade.Window):
         
     def setup_views(self):
         """Initialize all game views"""
-        # Create GameView first without window reference
+        # Create view instances
         self.views["game"] = GameView()
-        """Initialize all game views"""
-        # Create both views with proper references
-        self.views["game"] = GameView(self)  # Pass window reference
-        self.views["peek"] = PeekView(self.views["game"].game, self)  # Pass both game and window
+        self.views["peek"] = PeekView(self.views["game"].game, self)
+        self.views["profile"] = ProfileView()
+        self.views["menu"] = MenuView()
         
-    def show_view(self, view_name):
+        # Set window references
+        for view in self.views.values():
+            view.window = self
+        
+    def show_view(self, view_name: str):
         """Show a view by name"""
-        if view_name in self.views:
-            super().show_view(self.views[view_name])
-        else:
-            print(f"Error: View '{view_name}' not found")
+        try:
+            view = self.views[view_name]
+            super().show_view(view)
+        except KeyError:
+            print(f"Error: View '{view_name}' not found. Available views: {list(self.views.keys())}")
+            arcade.exit()

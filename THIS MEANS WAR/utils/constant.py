@@ -4,5 +4,5 @@ CARD_WIDTH = 80
 CARD_HEIGHT = 120
 
 PROFILE_EMOJIS = [
-    "UwU", ":D", ":^D", "OwO", ">_<", "^_^", "T_T", "¯\_(ツ)_/¯"
+    r"UwU", r":D", r":^D", r"OwO", r">_<", r"^_^", r"T_T", r"¯\_(ツ)_/¯"
 ]
