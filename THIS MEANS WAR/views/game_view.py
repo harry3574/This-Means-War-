@@ -8,6 +8,10 @@ class GameView(arcade.View):
         super().__init__()
         self.game = WarGame()
         self.window = window
+        # Load profile-specific settings if needed
+        if hasattr(window, 'current_profile'):
+            self.current_profile = window.current_profile
+
         self.showing_battle = False
         self.player_card = None
         self.ai_card = None
@@ -130,6 +134,7 @@ class GameView(arcade.View):
             arcade.color.LIGHT_GRAY, 16,
             align="center", anchor_x="center"
         )
+
         
         # Draw face-down cards (before battle)
         if not self.showing_battle:
@@ -220,6 +225,27 @@ class GameView(arcade.View):
         
         # Draw battle history in scrollable area
         self._draw_battle_history()
+
+
+        # Save button
+        save_rect = arcade.rect.XYWH(save_start_x, save_y_pos, save_button_width, save_button_height)
+        arcade.draw_rect_filled(save_rect, arcade.color.BLUE)
+        arcade.draw_text("Save", 
+                        save_rect.center_x, save_rect.center_y, 
+                        arcade.color.WHITE, 
+                        font_size=16, 
+                        anchor_x="center", anchor_y="center")
+
+        # Load button
+        load_rect = arcade.rect.XYWH(save_start_x + save_button_width + save_button_spacing, save_y_pos, save_button_width, save_button_height)
+        arcade.draw_rect_filled(load_rect, arcade.color.GREEN)
+        arcade.draw_text("Load", 
+                        load_rect.center_x, load_rect.center_y, 
+                        arcade.color.WHITE, 
+                        font_size=16, 
+                        anchor_x="center", anchor_y="center")
+
+
     
     def _draw_deck_status(self):
         """Draw visual representation of remaining cards"""
@@ -285,9 +311,17 @@ class GameView(arcade.View):
             self.reveal_cards()
         
         # Check peek button - FIXED: Create new PeekView instance
-        elif (SCREEN_WIDTH - 250 <= x <= SCREEN_WIDTH - 50) and (25 <= y <= 75):
+        if (SCREEN_WIDTH - 250 <= x <= SCREEN_WIDTH - 50) and (25 <= y <= 75):
             self.window.show_view("peek")
-    
+        
+        # Save button
+        if SCREEN_WIDTH - 140 <= x <= SCREEN_WIDTH - 60 and 35 <= y <= 65:
+            self.show_save_dialog()
+        
+        # Load button
+        if SCREEN_WIDTH - 240 <= x <= SCREEN_WIDTH - 160 and 35 <= y <= 65:
+            self.show_load_dialog()
+        
     def on_key_press(self, key, modifiers):
         # Spacebar to reveal cards
         if key == arcade.key.SPACE and not self.showing_battle and not self.button_pressed:
@@ -417,3 +451,9 @@ class GameView(arcade.View):
                 50, 480 - i * 30,
                 color, 14
             )
+    
+    def show_save_dialog(self):
+        self.window.show_view("save_load", mode="save")
+
+    def show_load_dialog(self):
+        self.window.show_view("save_load", mode="load")

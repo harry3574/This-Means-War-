@@ -3,6 +3,7 @@ import datetime
 import arcade
 from utils.saves import GameSaver
 from utils.constant import SCREEN_WIDTH, SCREEN_HEIGHT
+from views.delete_view import DeleteView
 
 class MenuView(arcade.View):
     def __init__(self):
@@ -13,6 +14,7 @@ class MenuView(arcade.View):
             {"text": "New Game", "action": "new_game"},
             {"text": "Load Game", "action": "load_game"},
             {"text": "Change Profile", "action": "change_profile"},
+            {"text": "Delete Saves/Profiles", "action": "delete"},
             {"text": "Quit", "action": "quit"}
         ]
         self.selected_index = 0
@@ -58,6 +60,8 @@ class MenuView(arcade.View):
             self.saver.current_profile_id = self.current_profile['id']
 
     def on_draw(self):
+        self.clear()
+
         # Draw title
         arcade.draw_text(
             self.title,
@@ -178,23 +182,22 @@ class MenuView(arcade.View):
             self.showing_load_menu = True
             self.saves_list = self.saver.list_saves()
         elif action == "change_profile":
-            from views.profile_view import ProfileView
-            self.window.show_view(ProfileView())
+            self.window.show_view("profile")
+        elif action == "delete":
+            # This will use the window's view management
+            self.window.show_view("delete")
         elif action == "quit":
             self.window.close()
 
     def _start_new_game(self):
-        """Start a brand new game"""
-        from views.game_view import GameView
-        if not self.current_profile:
+        """Start a brand new game with proper profile handling"""
+        if not hasattr(self, 'current_profile') or not self.current_profile:
+            # No profile selected - force creation
             from views.profile_view import ProfileView
-            # Force creation with must_create=True
             self.window.show_view(ProfileView(must_create=True))
-        return
-            
-        game_view = GameView()
-        game_view.game.initialize_new_campaign()
-        self.window.show_view(game_view)
+            return
+
+        self.window.show_view("game")
 
     def _load_selected_save(self):
         """Load the selected save game"""

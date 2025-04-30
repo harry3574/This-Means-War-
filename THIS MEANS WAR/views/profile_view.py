@@ -33,78 +33,130 @@ class ProfileView(arcade.View):
             self.mode = "create"
 
     def on_draw(self):
-        # Title
+        self.clear()
+
+        # Draw the background first
+        arcade.draw_lrbt_rectangle_filled(
+            left=0,
+            right=SCREEN_WIDTH,
+            bottom=0,
+            top=SCREEN_HEIGHT,
+            color=arcade.color.DARK_SLATE_GRAY
+        )
+
+        # Title (top layer)
         title = "CREATE PROFILE" if self.mode == "create" else "SELECT PROFILE"
         arcade.draw_text(
             title,
             SCREEN_WIDTH // 2,
-            SCREEN_HEIGHT - 50,
+            SCREEN_HEIGHT - 70,  # Lowered slightly
             arcade.color.WHITE,
             font_size=30,
-            anchor_x="center"
+            anchor_x="center",
+            bold=True
         )
 
-        # Profiles list
+        # Main content area
+        content_top = SCREEN_HEIGHT - 100
+        content_bottom = 100
+
+        # Draw a semi-transparent panel for the content
+        arcade.draw_lrbt_rectangle_filled(
+            left=SCREEN_WIDTH//4,
+            right=SCREEN_WIDTH*3//4,
+            bottom=content_bottom,
+            top=content_top,
+            color=(50, 50, 70, 200)
+        )
+
         if self.mode == "select":
+            # Profile list (middle layer)
+            start_y = content_top - 50
             for i, profile in enumerate(self.profiles):
-                y_pos = SCREEN_HEIGHT - 120 - i * 40
-                color = arcade.color.GOLD if i == self.selected_index else arcade.color.WHITE
+                y_pos = start_y - i * 50
+                
+                # Highlight selected profile
+                if i == self.selected_index:
+                    arcade.draw_lrbt_rectangle_filled(
+                        left=SCREEN_WIDTH//4 + 20,
+                        right=SCREEN_WIDTH*3//4 - 20,
+                        bottom=y_pos - 25,
+                        top=y_pos + 25,
+                        color=(100, 100, 50, 150)
+                    )
                 
                 arcade.draw_text(
                     f"{profile['emoji']} {profile['name']}",
                     SCREEN_WIDTH // 2,
                     y_pos,
-                    color,
-                    font_size=20,
-                    anchor_x="center"
+                    arcade.color.GOLD if i == self.selected_index else arcade.color.WHITE,
+                    font_size=24,
+                    anchor_x="center",
+                    anchor_y="center"
                 )
 
-        # New profile input
-        if self.mode == "create":
+        elif self.mode == "create":
+            # Create profile form (middle layer)
+            center_y = content_top - (content_top - content_bottom) // 2
+            
+            # Input label
             arcade.draw_text(
                 "Enter Profile Name:",
                 SCREEN_WIDTH // 2,
-                SCREEN_HEIGHT // 2 + 30,
+                center_y + 60,
                 arcade.color.WHITE,
                 font_size=24,
                 anchor_x="center"
             )
             
-            # Corrected rectangle drawing using lrbt method
+            # Input box background
+            arcade.draw_lrbt_rectangle_filled(
+                left=SCREEN_WIDTH//2 - 210,
+                right=SCREEN_WIDTH//2 + 210,
+                bottom=center_y - 50,
+                top=center_y + 10,
+                color=(30, 30, 40)
+            )
+            
+            # Input box outline
             arcade.draw_lrbt_rectangle_outline(
-                left=SCREEN_WIDTH // 2 - 200,
-                right=SCREEN_WIDTH // 2 + 200,
-                top=SCREEN_HEIGHT // 2 + 5,
-                bottom=SCREEN_HEIGHT // 2 - 45,
+                left=SCREEN_WIDTH//2 - 200,
+                right=SCREEN_WIDTH//2 + 200,
+                bottom=center_y - 40,
+                top=center_y,
                 color=arcade.color.WHITE,
                 border_width=2
             )
             
+            # Input text
             arcade.draw_text(
                 self.new_profile_name,
                 SCREEN_WIDTH // 2,
-                SCREEN_HEIGHT // 2 - 20,
+                center_y - 20,
                 arcade.color.WHITE,
                 font_size=24,
                 anchor_x="center",
                 anchor_y="center"
             )
 
-        # Instructions
+        # Instructions (top layer)
         instructions = [
             "UP/DOWN: Select profile" if self.mode == "select" else "TYPE: Enter name",
             "ENTER: Confirm",
             "N: New profile" if self.mode == "select" else "ESC: Cancel"
         ]
         
-        for i, text in enumerate(instructions):
-            arcade.draw_text(
-                text,
-                20,
-                40 + i * 30,
-                arcade.color.LIGHT_GRAY,
-                font_size=16
-            )
+        arcade.draw_text(
+            "\n".join(instructions),
+            30,
+            60,
+            arcade.color.LIGHT_GRAY,
+            font_size=18,
+            multiline=True,
+            width=SCREEN_WIDTH - 60
+        )
+
+    # ... (keep all other methods unchanged) ...
 
     def on_key_press(self, key, modifiers):
         """Handle key presses"""
@@ -179,3 +231,9 @@ class ProfileView(arcade.View):
         else:
             # You could show this error on screen
             print(message)
+
+    def on_text(self, text: str):
+        if self.mode == "create" and len(self.new_profile_name) < 20:
+            self.new_profile_name += text
+            self.cursor_visible = True
+            self.cursor_blink = 0

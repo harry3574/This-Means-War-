@@ -62,7 +62,77 @@ class GameSaver:
                     UNIQUE (profile_id, save_name)
                 )
             """)
+                        
+            # NEW: Logging table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS game_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    profile_id INTEGER,
+                    action_type TEXT NOT NULL,
+                    details TEXT NOT NULL,
+                    FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE SET NULL
+                )
+            """)
             conn.commit()
+    
+    def log_action(self, action_type: str, details: str = "", profile_id: Optional[int] = None):
+        """Log an action to the database"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO game_logs 
+                    (profile_id, action_type, details) 
+                    VALUES (?, ?, ?)
+                """, (profile_id or self.current_profile_id, action_type, details))
+                conn.commit()
+        except Exception as e:
+            logging.error(f"Error logging action: {e}")
+
+    
+    def get_logs(self, limit: int = 100) -> List[Dict]:
+        """Retrieve recent logs"""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT l.*, p.name as profile_name
+                FROM game_logs l
+                LEFT JOIN profiles p ON l.profile_id = p.id
+                ORDER BY l.timestamp DESC
+                LIMIT ?
+            """, (limit,))
+            return [dict(row) for row in cursor.fetchall()]
+    
+        # NEW: Enhanced delete methods
+    def delete_save(self, save_id: int) -> bool:
+        """Delete a save and log the action"""
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM saves WHERE id = ?", (save_id,))
+                conn.commit()
+                self.log_action("DELETE_SAVE", f"Deleted save ID {save_id}")
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Error deleting save: {e}")
+            return False
+
+    def delete_profile(self, profile_id: int) -> bool:
+        """Delete a profile and all its saves (cascade)"""
+        try:
+            profile_info = self.get_profile(profile_id)
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM profiles WHERE id = ?", (profile_id,))
+                conn.commit()
+                self.log_action("DELETE_PROFILE", 
+                              f"Deleted profile '{profile_info['name']}' with {cursor.rowcount} saves")
+                return cursor.rowcount > 0
+        except Exception as e:
+            logging.error(f"Error deleting profile: {e}")
+            return False
 
     def _serialize_cards(self, cards: List[Card]) -> str:
         """Convert list of cards to JSON string"""
@@ -143,18 +213,6 @@ class GameSaver:
             """, (profile_id,))
             result = cursor.fetchone()
             return dict(result) if result else None
-
-    def delete_profile(self, profile_id: int) -> bool:
-        """Delete a profile and all its saves (cascade)"""
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM profiles WHERE id = ?", (profile_id,))
-                conn.commit()
-                return cursor.rowcount > 0
-        except Exception as e:
-            logging.error(f"Error deleting profile: {e}")
-            return False
 
     def set_current_profile(self, profile_id: int) -> bool:
         """Set the active profile and update last_played timestamp"""
@@ -262,18 +320,6 @@ class GameSaver:
                 ORDER BY s.timestamp DESC
             """, (target_id,))
             return [dict(row) for row in cursor.fetchall()]
-
-    def delete_save(self, save_id: int) -> bool:
-        """Delete a save by ID"""
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM saves WHERE id = ?", (save_id,))
-                conn.commit()
-                return cursor.rowcount > 0
-        except Exception as e:
-            logging.error(f"Error deleting save: {e}")
-            return False
 
     def get_save_info(self, save_id: int) -> Optional[Dict]:
         """Get detailed information about a save"""
