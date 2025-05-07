@@ -209,28 +209,60 @@ class ProfileView(arcade.View):
                         self.last_key_time = current_time
 
     def select_profile(self):
-        """Set the selected profile as active"""
+        """Set the selected profile as active across all views"""
         profile = self.profiles[self.selected_index]
-        self.saver.current_profile_id = profile["id"]
-        self.window.show_view("menu")
+        
+        # Update profile in all relevant places
+        self.window.current_profile = profile
+        self.saver.current_profile_id = profile['id']
+        
+        # If this was a forced creation, start new game
+        if self.must_create:
+            from views.game_view import GameView
+            game_view = GameView(self.window)
+            game_view.game.initialize_new_campaign()
+            self.window.show_view(game_view)
+        else:
+            self.window.show_view("menu")
 
     def create_profile(self):
-        """Create new profile"""
+        """Create new profile with initial game state"""
         name = self.new_profile_name.strip()
         if not name:
             return
             
         success, message = self.saver.create_profile(name)
-        if success:
-            self.refresh_profiles()
-            if self.must_create:
-                self.select_profile()
-            else:
-                self.mode = "select"
-                self.selected_index = 0
-        else:
-            # You could show this error on screen
+        if not success:
             print(message)
+            return
+            
+        # Get the newly created profile
+        self.refresh_profiles()
+        new_profile = next((p for p in self.profiles if p['name'] == name), None)
+        if not new_profile:
+            return
+            
+        # Set as current profile
+        self.saver.current_profile_id = new_profile['id']
+        self.window.current_profile = new_profile
+        
+        # Create initial game state
+        from game.war_game import WarGame
+        from views.game_view import GameView
+        
+        # Create and save initial game
+        game = WarGame()
+        game.initialize_new_campaign()
+        self.saver.save_game(game, "initial_save")
+        
+        if self.must_create:
+            # Start game with this profile
+            game_view = GameView(self.window)
+            game_view.game = game
+            self.window.show_view(game_view)
+        else:
+            self.mode = "select"
+            self.selected_index = 0
 
     def on_text(self, text: str):
         if self.mode == "create" and len(self.new_profile_name) < 20:

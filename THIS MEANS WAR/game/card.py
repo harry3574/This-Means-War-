@@ -1,3 +1,6 @@
+from typing import Any, Dict
+
+
 class Card:
     def __init__(self, suit: str, value: str):
         self.suit = suit
@@ -24,3 +27,14 @@ class Card:
     
     def __repr__(self):
         return f"{self.value}{self.suit}"
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            'suit': self.suit,
+            'value': self.value,
+            'rank': self.rank
+    }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]):
+        return cls(data['suit'], data['value'])

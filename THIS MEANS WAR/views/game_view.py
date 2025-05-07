@@ -1,16 +1,25 @@
+from email import utils
+import random
 import arcade
 from game.war_game import WarGame
 from utils.constant import *
 from utils.saves import GameSaver
 
 class GameView(arcade.View):
-    def __init__(self, window=None):
+    def __init__(self, window=None, seed=None):
         super().__init__()
         self.game = WarGame()
         self.window = window
-        # Load profile-specific settings if needed
+        self.current_profile = None
+        self.saver = GameSaver()
+
+        self.seed = seed or random.randint(0, 999999)
+        random.seed(self.seed)
+
+        # Inherit profile from window
         if hasattr(window, 'current_profile'):
             self.current_profile = window.current_profile
+            self.saver.current_profile_id = self.current_profile['id']
 
         self.showing_battle = False
         self.player_card = None
@@ -228,25 +237,38 @@ class GameView(arcade.View):
 
 
         # Save button
-        save_rect = arcade.rect.XYWH(save_start_x, save_y_pos, save_button_width, save_button_height)
-        arcade.draw_rect_filled(save_rect, arcade.color.BLUE)
-        arcade.draw_text("Save", 
-                        save_rect.center_x, save_rect.center_y, 
-                        arcade.color.WHITE, 
-                        font_size=16, 
-                        anchor_x="center", anchor_y="center")
+        arcade.draw_rect_filled(
+            arcade.rect.XYWH(SAVE_BUTTON_X, BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT),
+            arcade.color.BLUE
+        )
+        arcade.draw_text(
+            "Save (F5)",
+            SAVE_BUTTON_X + BUTTON_WIDTH/2, BUTTON_Y + BUTTON_HEIGHT/2,
+            arcade.color.WHITE, 14,
+            anchor_x="center", anchor_y="center"
+        )
 
         # Load button
-        load_rect = arcade.rect.XYWH(save_start_x + save_button_width + save_button_spacing, save_y_pos, save_button_width, save_button_height)
-        arcade.draw_rect_filled(load_rect, arcade.color.GREEN)
-        arcade.draw_text("Load", 
-                        load_rect.center_x, load_rect.center_y, 
-                        arcade.color.WHITE, 
-                        font_size=16, 
-                        anchor_x="center", anchor_y="center")
+        arcade.draw_rect_filled(
+            arcade.rect.XYWH(LOAD_BUTTON_X, BUTTON_Y, BUTTON_WIDTH, BUTTON_HEIGHT),
+            arcade.color.GREEN
+        )
+        arcade.draw_text(
+            "Load (F9)",
+            LOAD_BUTTON_X + BUTTON_WIDTH/2, BUTTON_Y + BUTTON_HEIGHT/2,
+            arcade.color.WHITE, 14,
+            anchor_x="center", anchor_y="center"
+        )
+
+        # Add profile indicator
+        if hasattr(self, 'current_profile') and self.current_profile:
+            arcade.draw_text(
+                f"Profile: {self.current_profile['name']}",
+                20, SCREEN_HEIGHT - 30,
+                arcade.color.WHITE, 16
+            )
 
 
-    
     def _draw_deck_status(self):
         """Draw visual representation of remaining cards"""
         max_cards = 24  # Starting hand size
@@ -315,12 +337,14 @@ class GameView(arcade.View):
             self.window.show_view("peek")
         
         # Save button
-        if SCREEN_WIDTH - 140 <= x <= SCREEN_WIDTH - 60 and 35 <= y <= 65:
-            self.show_save_dialog()
-        
+        if (SAVE_BUTTON_X <= x <= SAVE_BUTTON_X + BUTTON_WIDTH and 
+            BUTTON_Y <= y <= BUTTON_Y + BUTTON_HEIGHT):
+            self.quick_save()
+
         # Load button
-        if SCREEN_WIDTH - 240 <= x <= SCREEN_WIDTH - 160 and 35 <= y <= 65:
-            self.show_load_dialog()
+        if (LOAD_BUTTON_X <= x <= LOAD_BUTTON_X + BUTTON_WIDTH and 
+            BUTTON_Y <= y <= BUTTON_Y + BUTTON_HEIGHT):
+            self.quick_load()
         
     def on_key_press(self, key, modifiers):
         # Spacebar to reveal cards
@@ -328,15 +352,13 @@ class GameView(arcade.View):
             self.reveal_cards()
     
         if key == arcade.key.F5:  # Quick save
-            saver = GameSaver()
-            saver.save_game(self.game, "quicksave")
+            #self.saver.save_game
+            self.quick_save()
             
         elif key == arcade.key.F9:  # Quick load
-            saver = GameSaver()
-            loaded_game = saver.load_game("quicksave")
-            if loaded_game:
-                self.game = loaded_game
-    
+            #self.saver.load_game
+            self.quick_load()
+            
     def reveal_cards(self):
         """Handle card revealing logic"""
         if self.button_pressed or not self.waiting_for_input:
@@ -452,8 +474,75 @@ class GameView(arcade.View):
                 color, 14
             )
     
-    def show_save_dialog(self):
-        self.window.show_view("save_load", mode="save")
+    def quick_save(self):
+        if not hasattr(self.window, 'current_profile'):
+            print("No profile selected - cannot save")
+            return
+        
+        saver = GameSaver()
+        success, message = saver.save_game(self.game, "quicksave")
+        print(message)  # Or show this in-game
+        
+        # Visual feedback
+        self.show_notification(message)
 
-    def show_load_dialog(self):
-        self.window.show_view("save_load", mode="load")
+    def quick_load(self):
+        if not hasattr(self.window, 'current_profile'):
+            print("No profile selected - cannot load")
+            return
+        
+        saver = GameSaver()
+        saves = saver.list_saves()
+        if not saves:
+            print("No saves found for this profile")
+            return
+        
+        # Load most recent save
+        loaded_game = saver.load_game(saves[0]['id'])
+        if loaded_game:
+            self.game = loaded_game
+            self.show_notification("Game loaded successfully")
+        else:
+            self.show_notification("Failed to load game")
+
+    def show_notification(self, message: str):
+        """Helper to show temporary status messages"""
+        self.notification = {
+            "text": message,
+            "time": 3.0  # Show for 3 seconds
+        }
+
+    # In game_view.py
+    def quick_save(self):
+        """Handle quick save functionality"""
+        if not hasattr(self.window, 'current_profile') or not self.window.current_profile:
+            print("Cannot save - no profile selected")
+            return
+            
+        self.saver.current_profile_id = self.window.current_profile['id']
+        success, message = self.saver.save_game(self.game, "quicksave")
+        if success:
+            print("Game saved successfully")
+        else:
+            print(f"Save failed: {message}")
+
+    def quick_load(self):
+        """Handle quick load functionality"""
+        if not hasattr(self.window, 'current_profile') or not self.window.current_profile:
+            print("Cannot load - no profile selected")
+            return
+            
+        self.saver.current_profile_id = self.window.current_profile['id']
+        saves = self.saver.list_saves()
+        if not saves:
+            print("No saves found for this profile")
+            return
+            
+        # Find most recent save
+        latest_save = max(saves, key=lambda x: x['timestamp'])
+        loaded_game = self.saver.load_game(latest_save['id'])
+        if loaded_game:
+            self.game = loaded_game
+            print("Game loaded successfully")
+        else:
+            print("Failed to load game")

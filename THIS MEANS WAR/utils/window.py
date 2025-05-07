@@ -5,7 +5,6 @@ from views.peek_view import PeekView
 from views.profile_view import ProfileView
 from views.menu_view import MenuView
 from views.delete_view import DeleteView
-from views.save_load_view import SaveLoadView
 from utils.constant import *
 
 class WarGameWindow(arcade.Window):
@@ -13,6 +12,7 @@ class WarGameWindow(arcade.Window):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, "War Game")
         self.views = {}
         self.setup_views()
+        self.current_profile = None  # Add profile storage
         
     def setup_views(self):
         """Initialize all game views"""

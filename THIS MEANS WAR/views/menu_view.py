@@ -4,12 +4,20 @@ import arcade
 from utils.saves import GameSaver
 from utils.constant import SCREEN_WIDTH, SCREEN_HEIGHT
 from views.delete_view import DeleteView
+from datetime import datetime
 
 class MenuView(arcade.View):
     def __init__(self):
         super().__init__()
         self.saver = GameSaver()
-        self.current_profile = None
+
+        # Use window's current profile if available
+        if hasattr(self.window, 'current_profile'):
+            self.current_profile = self.window.current_profile
+            self.saver.current_profile_id = self.current_profile['id']
+        else:
+            self.current_profile = None
+
         self.menu_options = [
             {"text": "New Game", "action": "new_game"},
             {"text": "Load Game", "action": "load_game"},
@@ -30,18 +38,6 @@ class MenuView(arcade.View):
         self.title_y = SCREEN_HEIGHT - 150
         self.option_start_y = SCREEN_HEIGHT // 2
         self.option_spacing = 60
-
-        self.saver = GameSaver()
-        self.current_profile = None
-
-        # Modified profile loading logic
-        profiles = self.saver.list_profiles()
-        if not profiles:  # If no profiles exist
-            from views.profile_view import ProfileView
-            self.window.show_view(ProfileView())
-        else:
-            self.current_profile = profiles[0]
-            self.saver.current_profile_id = self.current_profile['id']
 
         # Load current profile if available
         profiles = self.saver.list_profiles()
@@ -190,14 +186,34 @@ class MenuView(arcade.View):
             self.window.close()
 
     def _start_new_game(self):
-        """Start a brand new game with proper profile handling"""
+        """Start game with profile's initial state"""
         if not hasattr(self, 'current_profile') or not self.current_profile:
-            # No profile selected - force creation
             from views.profile_view import ProfileView
             self.window.show_view(ProfileView(must_create=True))
             return
-
+            
+        from views.game_view import GameView
+        from utils.saves import GameSaver
+        
+        saver = GameSaver()
+        saves = saver.list_saves()
+        initial_save = next((s for s in saves if s['save_name'] == "initial_save"), None)
+        
+        game_view = GameView(self.window)
+        
+        if initial_save:
+            # Load the initial save
+            loaded_game = saver.load_game(initial_save['id'])
+            if loaded_game:
+                game_view.game = loaded_game
+        else:
+            # Create new game if no initial save exists
+            game_view.game.initialize_new_campaign()
+            saver.save_game(game_view.game, "initial_save")
+        
         self.window.show_view("game")
+        
+        
 
     def _load_selected_save(self):
         """Load the selected save game"""
@@ -211,7 +227,7 @@ class MenuView(arcade.View):
         if loaded_game:
             game_view = GameView()
             game_view.game = loaded_game
-            self.window.show_view(game_view)
+            self.window.show_view("game")
 
     def on_mouse_press(self, x, y, button, modifiers):
         """Handle mouse clicks for buttons"""
@@ -236,3 +252,11 @@ class MenuView(arcade.View):
                     self.selected_index = i
                     self._execute_menu_action()
                     break
+
+    def select_profile(self):
+        """Set the selected profile as active"""
+        profile = self.profiles[self.selected_index]
+        self.current_profile = profile
+        self.saver.current_profile_id = profile["id"]
+        self.window.current_profile = profile  # Add this line
+        self.window.show_view("menu")

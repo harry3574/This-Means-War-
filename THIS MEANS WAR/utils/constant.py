@@ -7,11 +7,9 @@ PROFILE_EMOJIS = [
     r"UwU", r":D", r":^D", r"OwO", r">_<", r"^_^", r"T_T", r"¯\_(ツ)_/¯"
 ]
 
-
-
-# Save/Load button dimensions
-save_button_width = 80
-save_button_height = 30
-save_button_spacing = 20  # space between buttons
-save_start_x = 50  # left padding
-save_y_pos = 50   # vertical position
+# Add near other constants
+SAVE_BUTTON_X = SCREEN_WIDTH - 140
+LOAD_BUTTON_X = SCREEN_WIDTH - 240
+BUTTON_Y = 50
+BUTTON_WIDTH = 80
+BUTTON_HEIGHT = 30

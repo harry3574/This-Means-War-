@@ -134,9 +134,16 @@ class GameSaver:
             logging.error(f"Error deleting profile: {e}")
             return False
 
-    def _serialize_cards(self, cards: List[Card]) -> str:
-        """Convert list of cards to JSON string"""
-        return json.dumps([{"suit": card.suit, "value": card.value} for card in cards])
+    def _deserialize_state(self, json_str: str, state_class):
+        """Deserialize JSON to game state objects using their from_dict() method"""
+        if not json_str or json_str == "{}":
+            return None
+        data = json.loads(json_str)
+        if hasattr(state_class, 'from_dict'):
+            return state_class.from_dict(data)
+        state = state_class()
+        state.__dict__.update(data)
+        return state
 
     def _deserialize_cards(self, json_str: str) -> List[Card]:
         """Convert JSON string back to Card objects"""
@@ -145,20 +152,21 @@ class GameSaver:
         cards_data = json.loads(json_str)
         return [Card(card["suit"], card["value"]) for card in cards_data]
 
+    def _serialize_cards(self, cards: List[Card]) -> str:
+        """Convert list of cards to JSON string"""
+        if not cards:
+            return "[]"
+        return json.dumps([card.to_dict() for card in cards])
+    
     def _serialize_state(self, state) -> str:
-        """Serialize game state objects to JSON"""
         if not state:
             return "{}"
-        return json.dumps(state.__dict__)
+        if isinstance(state, dict):
+            return json.dumps(state)
+        if hasattr(state, 'to_dict'):
+            return json.dumps(state.to_dict())
+        return json.dumps(state.__dict__)  # fallback (optional)
 
-    def _deserialize_state(self, json_str: str, state_class):
-        """Deserialize JSON to game state objects"""
-        if not json_str or json_str == "{}":
-            return None
-        data = json.loads(json_str)
-        state = state_class()
-        state.__dict__.update(data)
-        return state
 
     # ===== PROFILE MANAGEMENT =====
     def create_profile(self, name: str) -> Tuple[bool, str]:
@@ -358,3 +366,5 @@ class GameSaver:
         except Exception as e:
             logging.error(f"Error resetting database: {e}")
             return False
+
+    
