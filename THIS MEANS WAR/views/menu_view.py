@@ -2,9 +2,10 @@
 import datetime
 import arcade
 from utils.saves import GameSaver
-from utils.constant import SCREEN_WIDTH, SCREEN_HEIGHT
-from views.delete_view import DeleteView
+from utils.constant import SCREEN_HEIGHT, SCREEN_WIDTH
 from datetime import datetime
+from views.game_view import GameView
+from views.profile_view import ProfileView
 
 class MenuView(arcade.View):
     def __init__(self):
@@ -23,6 +24,7 @@ class MenuView(arcade.View):
             {"text": "Load Game", "action": "load_game"},
             {"text": "Change Profile", "action": "change_profile"},
             {"text": "Delete Saves/Profiles", "action": "delete"},
+            {"text": "Create Profile", "action": "create"},
             {"text": "Quit", "action": "quit"}
         ]
         self.selected_index = 0
@@ -47,13 +49,20 @@ class MenuView(arcade.View):
 
     def on_show_view(self):
         """Called when view is shown"""
+        self.current_profile = getattr(self.window, 'current_profile', None)
+        profile = getattr(self.window, 'current_profile', None)
+        print(f"[DEBUG MENU] Profile at menu: {self.current_profile}")
+        print(f"[DEBUG MENU] Profile at menu: {profile}")
         profiles = self.saver.list_profiles()
-        if not profiles:
-            # Schedule profile view for next frame
-            arcade.schedule_once(lambda dt: self.window.show_view("profile"), 0.1)
-        else:
-            self.current_profile = profiles[0]
-            self.saver.current_profile_id = self.current_profile['id']
+
+        if not self.current_profile:
+            profiles = self.saver.list_profiles()
+            if not profiles:
+                # No profiles exist — redirect to profile creation
+                arcade.schedule_once(lambda dt: self.window.show_view("profile"), 0.1)
+            else:
+                self.current_profile = profiles[0]
+                self.window.current_profile = self.current_profile
 
     def on_draw(self):
         self.clear()
@@ -182,18 +191,16 @@ class MenuView(arcade.View):
         elif action == "delete":
             # This will use the window's view management
             self.window.show_view("delete")
+        elif action == "create":
+            self.window.show_view("create_profile")
         elif action == "quit":
             self.window.close()
 
     def _start_new_game(self):
         """Start game with profile's initial state"""
         if not hasattr(self, 'current_profile') or not self.current_profile:
-            from views.profile_view import ProfileView
             self.window.show_view(ProfileView(must_create=True))
             return
-            
-        from views.game_view import GameView
-        from utils.saves import GameSaver
         
         saver = GameSaver()
         saves = saver.list_saves()
@@ -213,11 +220,9 @@ class MenuView(arcade.View):
         
         self.window.show_view("game")
         
-        
 
     def _load_selected_save(self):
         """Load the selected save game"""
-        from views.game_view import GameView
         if not self.saves_list:
             return
             
@@ -260,3 +265,7 @@ class MenuView(arcade.View):
         self.saver.current_profile_id = profile["id"]
         self.window.current_profile = profile  # Add this line
         self.window.show_view("menu")
+    
+    def update_profile(self, profile):
+        self.profile = profile
+        self.refresh_ui()

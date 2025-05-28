@@ -27,7 +27,7 @@ class SaveLoadView(arcade.View):
         )
         
         # Dialog box
-        arcade.draw_rectangle_filled(
+        arcade.draw_rect_filled(
             SCREEN_WIDTH//2, SCREEN_HEIGHT//2,
             600, 400,
             arcade.color.DARK_SLATE_GRAY

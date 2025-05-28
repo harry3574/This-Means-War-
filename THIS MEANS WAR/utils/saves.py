@@ -8,7 +8,9 @@ from game.game_states import GamePhase, War, Skirmish, Hand
 from game.war_game import WarGame
 import logging
 import random
-from datetime import datetime
+import hashlib
+import secrets
+from utils.passwrd_verify import hash_password, verify_password
 
 # Import emojis from constants
 try:
@@ -38,6 +40,8 @@ class GameSaver:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT UNIQUE NOT NULL,
                     emoji TEXT NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    salt TEXT NOT NULL,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     last_played DATETIME
                 )
@@ -169,18 +173,21 @@ class GameSaver:
 
 
     # ===== PROFILE MANAGEMENT =====
-    def create_profile(self, name: str) -> Tuple[bool, str]:
-        """Create a new profile with random emoji"""
+    def create_profile(self, name: str, password: str) -> Tuple[bool, str]:
+        """Create a new profile with password"""
         if not name.strip():
             return False, "Profile name cannot be empty"
+        if not password:
+            return False, "Password cannot be empty"
             
         try:
+            salt, pwd_hash = hash_password(password)
             emoji = random.choice(PROFILE_EMOJIS)
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
-                    "INSERT INTO profiles (name, emoji) VALUES (?, ?)",
-                    (name.strip(), emoji)
+                    "INSERT INTO profiles (name, emoji, password_hash, salt) VALUES (?, ?, ?, ?)",
+                    (name.strip(), emoji, pwd_hash, salt)
                 )
                 conn.commit()
                 return True, f"Profile '{name}' {emoji} created!"
@@ -367,4 +374,47 @@ class GameSaver:
             logging.error(f"Error resetting database: {e}")
             return False
 
-    
+    @staticmethod
+    def verify_password(stored_salt: str, stored_hash: str, password: str) -> bool:
+        """Verify password against stored hash"""
+        if not stored_salt or not stored_hash:
+            return False  # Early exit if salt/hash is missing
+        
+        new_hash = hashlib.pbkdf2_hmac(
+            'sha256',
+            password.encode('utf-8'),
+            stored_salt.encode('utf-8'),
+            100000
+        ).hex()
+        return secrets.compare_digest(new_hash, stored_hash)
+
+    def verify_profile_password(self, profile_id: int, password: str) -> bool:
+        """Verify password for a profile with debug output"""
+        print(f"\n[DEBUG] Verifying password for profile {profile_id}...")
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT password_hash, salt FROM profiles WHERE id = ?",
+                    (profile_id,)
+                )
+                result = cursor.fetchone()
+                
+                if not result:
+                    print("[DEBUG] No profile found with that ID")
+                    return False
+                
+                stored_hash, salt = result
+                print(f"[DEBUG] Retrieved salt: {salt[:5]}...{salt[-5:]}")
+                print(f"[DEBUG] Retrieved hash: {stored_hash[:5]}...{stored_hash[-5:]}")
+                
+                if not salt or not stored_hash:
+                    print("[DEBUG] Missing salt or hash in database")
+                    return False
+                    
+                verified = self.verify_password(salt, stored_hash, password)
+                print(f"[DEBUG] Verification result: {verified}")
+                return verified
+        except Exception as e:
+            print(f"[ERROR] Verification failed: {str(e)}")
+            return False

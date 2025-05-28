@@ -5,6 +5,7 @@ from views.peek_view import PeekView
 from views.profile_view import ProfileView
 from views.menu_view import MenuView
 from views.delete_view import DeleteView
+from views.profile_creation_view import ProfileCreationView
 from utils.constant import *
 
 class WarGameWindow(arcade.Window):
@@ -23,6 +24,8 @@ class WarGameWindow(arcade.Window):
         self.views["menu"] = MenuView()
         self.views["delete"] = DeleteView()
         self.views["save_load"] = None
+        self.views["password"] = None
+        self.views["create_profile"] = ProfileCreationView()
         
         # Set window references
         for view in self.views.values():
@@ -39,7 +42,14 @@ class WarGameWindow(arcade.Window):
             
             view = self.views[view_name]
             super().show_view(view)
+            self._debug_current_view()
         except KeyError:
             available = list(self.views.keys())
             print(f"Error: View '{view_name}' not found. Available views: {available}")
             arcade.exit()
+        
+    def _debug_current_view(self):
+        """Print current view information to console"""
+        print(f"\n[DEBUG] Current View: {self.current_view}")
+        print(f"[DEBUG] Profile: {getattr(self, 'current_profile', 'None')}")
+        print(f"[DEBUG] Views loaded: {list(self.views.keys())}\n")
