@@ -4,7 +4,8 @@ from typing import List, Dict
 from utils.saves import GameSaver
 from utils.constant import SCREEN_WIDTH, SCREEN_HEIGHT
 from datetime import datetime
-import utils.window
+from utils.cursor import BlinkingCursor
+
 
 class ProfileView(arcade.View):
     def __init__(self, must_create: bool = False):
@@ -31,6 +32,9 @@ class ProfileView(arcade.View):
         self.password_input = ""  # Make sure this is initialized
         self.error_message = ""
 
+        self.cursor = BlinkingCursor(blink_rate=0.5)  # You can adjust blink_rate if you want
+
+
     def refresh_profiles(self):
         """Reload profiles from database with debug output"""
         print("\n[DEBUG] Attempting to load profiles...")
@@ -54,6 +58,8 @@ class ProfileView(arcade.View):
 
     def on_draw(self):
         self.clear()
+
+        self.cursor.update()
 
         # Draw the background first
         arcade.draw_lrbt_rectangle_filled(
@@ -148,6 +154,20 @@ class ProfileView(arcade.View):
                 anchor_y="center"
             )
             
+            # Draw blinking cursor for Name input if active input is "name"
+            if self.active_input == "name" and self.cursor.visible:
+                text_obj = arcade.Text(self.new_profile_name, 0, 0, font_size=24)
+                text_width = text_obj.content_width
+                cursor_x = SCREEN_WIDTH // 2 + text_width // 2 + 5  # Small padding after text
+                cursor_y_bottom = center_y + 35
+                cursor_y_top = center_y + 65
+                arcade.draw_line(
+                    cursor_x, cursor_y_bottom,
+                    cursor_x, cursor_y_top,
+                    arcade.color.WHITE,
+                    2
+                )
+            
             # Password Input
             arcade.draw_text(
                 "Enter Password:",
@@ -187,6 +207,20 @@ class ProfileView(arcade.View):
                 anchor_y="center"
             )
             
+            # Draw blinking cursor for Password input if active input is "password"
+            if self.active_input == "password" and self.cursor.visible:
+                text_obj = arcade.Text(display_password, 0, 0, font_size=24)
+                text_width = text_obj.content_width
+                cursor_x = SCREEN_WIDTH // 2 + text_width // 2 + 5  # Small padding after text
+                cursor_y_bottom = center_y - 75
+                cursor_y_top = center_y - 35
+                arcade.draw_line(
+                    cursor_x, cursor_y_bottom,
+                    cursor_x, cursor_y_top,
+                    arcade.color.WHITE,
+                    2
+                )
+            
             # Password requirements hint
             arcade.draw_text(
                 "(Must be at least 4 characters)",
@@ -197,27 +231,11 @@ class ProfileView(arcade.View):
                 anchor_x="center"
             )
 
-        # Instructions (top layer)
-        instructions = [
-            "TAB: Switch between name/password",
-            "SHIFT: Show/hide password",
-            "ENTER: Confirm",
-            "ESC: Cancel" if not self.must_create else ""
-        ]
-
-        arcade.draw_text(
-            "\n".join([i for i in instructions if i]),  # Filter out empty instructions
-            30,
-            60,
-            arcade.color.LIGHT_GRAY,
-            font_size=18,
-            multiline=True,
-            width=SCREEN_WIDTH - 60
-        )
 
     # ... (keep all other methods unchanged) ...
 
     def on_key_press(self, key, modifiers):
+        # === Navigation ===
         if key == arcade.key.ESCAPE:
             if self.mode == "create":
                 if not self.must_create:
@@ -225,24 +243,20 @@ class ProfileView(arcade.View):
             elif self.mode == "password_prompt":
                 self.mode = "select"
             else:
-                self.window.show_view("menu")
+                from views.menu_view import MenuView
+                self.window.show_view(MenuView())
 
         elif key == arcade.key.TAB:
             if self.mode == "create":
                 self.active_input = "password" if self.active_input == "name" else "name"
 
-        elif key in [arcade.key.LSHIFT, arcade.key.RSHIFT]:
-            self.show_password = not self.show_password
+        elif key == arcade.key.UP and self.mode == "select":
+            self.selected_index = max(0, self.selected_index - 1)
 
-        elif key == arcade.key.BACKSPACE:
-            if self.mode == "create":
-                if self.active_input == "name":
-                    self.new_profile_name = self.new_profile_name[:-1]
-                else:
-                    self.new_profile_password = self.new_profile_password[:-1]
-            elif self.mode == "password_prompt":
-                self.password_input = self.password_input[:-1]
+        elif key == arcade.key.DOWN and self.mode == "select":
+            self.selected_index = min(len(self.profiles) - 1, self.selected_index + 1)
 
+        # === Action keys ===
         elif key == arcade.key.ENTER:
             if self.mode == "create":
                 self.create_profile()
@@ -253,21 +267,19 @@ class ProfileView(arcade.View):
             elif self.mode == "password_prompt":
                 self.select_profile()
 
-        elif key == arcade.key.DOWN and self.mode == "select":
-            self.selected_index = min(len(self.profiles) - 1, self.selected_index + 1)
-
-        elif key == arcade.key.UP and self.mode == "select":
-            self.selected_index = max(0, self.selected_index - 1)
-
-        elif hasattr(key, "char") and key.char:
-            char = key.char
+        elif key == arcade.key.BACKSPACE:
             if self.mode == "create":
-                if self.active_input == "name" and len(self.new_profile_name) < 20:
-                    self.new_profile_name += char
-                elif self.active_input == "password" and len(self.new_profile_password) < 20:
-                    self.new_profile_password += char
-            elif self.mode == "password_prompt" and len(self.password_input) < 20:
-                self.password_input += char
+                if self.active_input == "name":
+                    self.new_profile_name = self.new_profile_name[:-1]
+                else:
+                    self.new_profile_password = self.new_profile_password[:-1]
+            elif self.mode == "password_prompt":
+                self.password_input = self.password_input[:-1]
+
+        # === Toggle password visibility (Ctrl + P) ===
+        elif key == arcade.key.P and (modifiers & arcade.key.MOD_CTRL):
+            self.show_password = not self.show_password
+
 
     def on_key_release(self, key, modifiers):
         """Handle key releases"""
@@ -348,9 +360,6 @@ class ProfileView(arcade.View):
             self.window.views["menu"] = MenuView()
             self.window.views["menu"].window = self.window  # set the window reference manually
             self.window.show_view("menu")
-
-
-
         return True
 
 

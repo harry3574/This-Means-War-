@@ -3,6 +3,8 @@ SCREEN_HEIGHT = 800
 CARD_WIDTH = 80
 CARD_HEIGHT = 120
 
+CURSOR_BLINK_RATE = 0.5  # seconds
+
 PROFILE_EMOJIS = [
     r"UwU", r":D", r":^D", r"OwO", r">_<", r"^_^", r"T_T", r"¯\_(ツ)_/¯",
     r":3", r"o_O", r"¬_¬", r"-_-", r"(＾▽＾)", r"(｡♥‿♥｡)", r"(╯°□°）╯︵ ┻━┻", r"(>_<)", 

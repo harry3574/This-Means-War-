@@ -190,7 +190,8 @@ class GameSaver:
                     (name.strip(), emoji, pwd_hash, salt)
                 )
                 conn.commit()
-                return True, f"Profile '{name}' {emoji} created!"
+                self.log_action("CREATE_PROFILE", f"Created profile '{name}' with {cursor.rowcount} saves")
+                return True, f"Profile '{name}' {emoji} created!",
         except sqlite3.IntegrityError:
             return False, f"Profile '{name}' already exists"
         except Exception as e:
@@ -241,6 +242,7 @@ class GameSaver:
                 """, (profile_id,))
                 conn.commit()
                 self.current_profile_id = profile_id
+                self.log_action("SWITCHING_PROFILE", f"Switched to profile '{profile_id}' with {cursor.rowcount} saves")
                 return True
         except Exception as e:
             logging.error(f"Error setting profile: {e}")

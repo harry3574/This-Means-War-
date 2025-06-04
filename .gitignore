@@ -3,3 +3,6 @@ test_audio.py
 animations.py
 __pycache__/
 /THIS MEANS WAR/views/__pycache__
+test/
+/utils/war_game_saves.db
+THIS MEANS WAR/utils/war_game_saves.db
