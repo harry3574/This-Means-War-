@@ -16,7 +16,24 @@ class PeekView(arcade.View):
         self.font_size = 14
         self.hovered_card = None
         self.show_help = False
-        
+        self.last_selected_index = None
+        self.primary_selected_index = None  # Track first selection
+        self.secondary_selected_index = None  # Track current navigation
+
+        self.visible_items_count = 14  # Always show 14 rows
+        self.top_visible_index = 0     # Index of the top card currently shown
+        self.secondary_selected_index = 0  # Index of the cursor (selected row)
+
+        self.scroll_y = 0  # Scroll offset in pixels
+
+        self.START_Y = SCREEN_HEIGHT - 120
+
+        self.scroll_bar_x = SCREEN_WIDTH - 20  # Right margin
+        self.scroll_bar_top = SCREEN_HEIGHT - 120
+        self.scroll_bar_height = self.visible_items_count * self.row_height
+        self.scroll_bar_width = 6
+
+    
         # Enhanced color scheme
         self.color_strong_win = arcade.color.GREEN
         self.color_weak_win = arcade.color.LIME_GREEN
@@ -31,6 +48,12 @@ class PeekView(arcade.View):
 
     def _init_ui(self):
         """Initialize all UI elements with better spacing"""
+
+         # Help section positioning constants
+        self.help_top = SCREEN_HEIGHT - 80
+        self.help_section_spacing = 40
+        self.help_line_spacing = 30
+
         # Main headers
         self.title = Text(
             "DECK STRATEGY OVERVIEW",
@@ -55,14 +78,84 @@ class PeekView(arcade.View):
             'swap': Text("SWAP SELECTED", SCREEN_WIDTH//2, 40, arcade.color.YELLOW, 16, anchor_x="center")
         }
         
-        # Help information
-        self.help_info = Text(
-            "▲▲ Strong Win (+20+) | ▲ Good Win (+10-19) | ■ Neutral\n"
-            "▼ Risky Loss (-10-19) | ▼▼ Bad Loss (-20+) | Color shows suit effect",
-            SCREEN_WIDTH//2, 80,
-            arcade.color.WHITE, 14,
-            anchor_x="center", width=SCREEN_WIDTH-100, multiline=True
-        )
+
+        # Enhanced help information with visual scoring guide
+        self.help_info = [
+            # Title
+            Text("CARD BATTLE GUIDE", SCREEN_WIDTH//2, self.help_top, 
+                arcade.color.GOLD, 18, anchor_x="center", font_name="Garamond"),
+            
+            # Scoring system header
+            Text("SCORING SYSTEM", SCREEN_WIDTH//2, self.help_top - self.help_section_spacing, 
+                arcade.color.CYAN, 16, anchor_x="center"),
+
+            # First scoring line - split into 3 parts
+            Text("▲▲ +20+ pts", 
+                SCREEN_WIDTH//2 - 120, self.help_top - self.help_section_spacing - self.help_line_spacing,
+                self.color_strong_win, 14, anchor_x="center"),
+            Text("▲ +10-19 pts", 
+                SCREEN_WIDTH//2, self.help_top - self.help_section_spacing - self.help_line_spacing,
+                self.color_weak_win, 14, anchor_x="center"),
+            Text("■ Neutral (0-9)", 
+                SCREEN_WIDTH//2 + 120, self.help_top - self.help_section_spacing - self.help_line_spacing,
+                self.color_neutral, 14, anchor_x="center"),
+
+            # Second scoring line - split into 2 parts
+            Text("▼ -10-19 pts", 
+                SCREEN_WIDTH//2 - 80, self.help_top - self.help_section_spacing - self.help_line_spacing*2,
+                self.color_weak_loss, 14, anchor_x="center"),
+            Text("▼▼ -20+ pts", 
+                SCREEN_WIDTH//2 + 80, self.help_top - self.help_section_spacing - self.help_line_spacing*2,
+                self.color_strong_loss, 14, anchor_x="center"),
+
+
+            # Suit effect explanations
+            Text("Beats next suit (x1.5 bonus)", 
+                SCREEN_WIDTH//2, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*4, 
+                self.color_suit_boost, 14, anchor_x="center"),
+            Text("Loses to previous suit (x0.5 penalty)", 
+                SCREEN_WIDTH//2, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*5, 
+                self.color_suit_penalty, 14, anchor_x="center"),
+            
+            # Suit multipliers header
+            Text("SUIT MULTIPLIERS", SCREEN_WIDTH//2, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*2, 
+                arcade.color.CYAN, 16, anchor_x="center"),
+
+            # Individual suit relationship elements
+            Text("♠", SCREEN_WIDTH//2 - 160, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
+                arcade.color.WHITE, 28, anchor_x="center"),
+            Text(">", SCREEN_WIDTH//2 - 120, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
+                self.color_suit_boost, 20, anchor_x="center"),
+            Text("♣", SCREEN_WIDTH//2 - 80, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
+                arcade.color.LIGHT_GRAY, 28, anchor_x="center"),
+            Text(">", SCREEN_WIDTH//2 - 40, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
+                self.color_suit_boost, 20, anchor_x="center"),
+            Text("♦", SCREEN_WIDTH//2, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
+                arcade.color.LIGHT_RED_OCHRE, 28, anchor_x="center"),
+            Text(">", SCREEN_WIDTH//2 + 40, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
+                self.color_suit_boost, 20, anchor_x="center"),
+            Text("♥", SCREEN_WIDTH//2 + 80, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
+                arcade.color.RED, 28, anchor_x="center"),
+            Text(">", SCREEN_WIDTH//2 + 120, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
+                self.color_suit_boost, 20, anchor_x="center"),
+            Text("♠", SCREEN_WIDTH//2 + 160, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
+                arcade.color.WHITE, 28, anchor_x="center"),
+
+            # Controls
+            Text("CONTROLS", SCREEN_WIDTH//2, self.help_top - self.help_section_spacing*3 - self.help_line_spacing*5, 
+                arcade.color.CYAN, 16, anchor_x="center"),
+            Text("Arrows: Navigate • Enter: Select/Swap", 
+                SCREEN_WIDTH//2, self.help_top - self.help_section_spacing*3 - self.help_line_spacing*6, 
+                arcade.color.WHITE, 14, anchor_x="center"),
+            Text("H: Toggle Help • ESC: Back", 
+                SCREEN_WIDTH//2, self.help_top - self.help_section_spacing*3 - self.help_line_spacing*7, 
+                arcade.color.WHITE, 14, anchor_x="center")
+        ]
+
+        # Calculate help panel dimensions based on content
+        help_height = self.help_section_spacing*3 + self.help_line_spacing*7 + 50
+        self.help_bg = arcade.SpriteSolidColor(SCREEN_WIDTH-100, help_height, arcade.color.DARK_SLATE_GRAY)
+        self.help_bg.position = SCREEN_WIDTH//2, self.help_top - help_height//2 + 20
 
     def on_draw(self):
         # Background with subtle grid lines
@@ -85,34 +178,71 @@ class PeekView(arcade.View):
         
         # Draw controls
         self._draw_controls()
+
+        self._draw_scrollbar()
         
         # Help overlay if active
         if self.show_help:
+            # Semi-transparent background
+            
             arcade.draw_rect_filled(
-                arcade.rect.XYWH(SCREEN_WIDTH/2, SCREEN_HEIGHT/2, SCREEN_WIDTH-100, 200),
-                (0, 0, 50, 200)
+                arcade.rect.XYWH(self.help_bg.center_x, self.help_bg.center_y, self.help_bg.width, self.help_bg.height),
+                arcade.color.DARK_BLUE
             )
-            self.help_info.draw()
+            
+            # Draw border
+            arcade.draw_rect_outline(
+                arcade.rect.XYWH(self.help_bg.center_x, self.help_bg.center_y, self.help_bg.width, self.help_bg.height),
+                arcade.color.GOLD, 2
+            )
+            
+            # Draw all help text elements
+            for text in self.help_info:
+                text.draw()
+            
 
     def _draw_matchups(self):
-        """Draw all card matchups with clear spacing"""
+        """Draw all card matchups with clear spacing and persistent selection"""
+        """
         for i, (player_card, ai_card) in enumerate(zip(
             self.game.player_hand[:24],  # Limit to first 24 for space
             self.game.ai_hand[:24]
         )):
-            y_pos = SCREEN_HEIGHT - 120 - (i * self.row_height)
+        """
+
+        visible_range = range(self.top_visible_index, min(self.top_visible_index + self.visible_items_count, len(self.game.player_hand)))
+
+        for draw_index, i in enumerate(visible_range):
+            player_card = self.game.player_hand[i]
+            ai_card = self.game.ai_hand[i]
+
+            y_pos = self.START_Y - draw_index * self.row_height  # ❗️FIXED positions
+
+            # Calculate y position with scroll offset applied
+            #y_pos = SCREEN_HEIGHT - 120 - (i * self.row_height) - self.scroll_y
             
-            # Highlight selected/hovered rows
-            if i == self.selected_card_index:
+            # Skip drawing if completely off screen to optimize
+            if y_pos < -self.row_height or y_pos > SCREEN_HEIGHT + self.row_height:
+                continue
+            
+            # Highlight logic
+            if i == self.primary_selected_index:
+                # Primary selection (persistent until swap/cancel)
                 arcade.draw_rect_filled(
                     arcade.rect.XYWH(SCREEN_WIDTH/2, y_pos, SCREEN_WIDTH-100, self.row_height-5),
-                    (50, 50, 0, 100)
+                    (100, 0, 100, 150)  # Purple for primary selection
+                )
+            elif i == self.secondary_selected_index:
+                # Current navigation position
+                arcade.draw_rect_filled(
+                    arcade.rect.XYWH(SCREEN_WIDTH/2, y_pos, SCREEN_WIDTH-100, self.row_height-5),
+                    (50, 50, 0, 150)  # Yellow for current position
                 )
             elif i == self.hovered_card:
+                # Mouse hover effect
                 arcade.draw_rect_filled(
                     arcade.rect.XYWH(SCREEN_WIDTH/2, y_pos, SCREEN_WIDTH-100, self.row_height-5),
-                    (25, 25, 25, 100)
-                )
+                    (25, 25, 25, 100))
             
             # Player card
             self._draw_card(player_card, 120, y_pos, is_player=True)
@@ -132,6 +262,42 @@ class PeekView(arcade.View):
             
             # Suit effect
             self._draw_suit_effect(player_card, ai_card, 850, y_pos)
+
+    def _draw_scrollbar(self):
+        """Draws a vertical scrollbar on the right of the matchup list."""
+        total_items = len(self.game.player_hand)
+        visible_items = self.visible_items_count
+
+        if total_items <= visible_items:
+            return  # No need for a scrollbar
+
+        # Scrollbar track position and size
+        scrollbar_x = SCREEN_WIDTH - 20
+        scrollbar_top = SCREEN_HEIGHT - 120
+        scrollbar_height = visible_items * self.row_height
+        scrollbar_bottom = scrollbar_top - scrollbar_height
+
+        # Draw track
+        arcade.draw_rect_filled(
+            arcade.rect.XYWH(scrollbar_x, scrollbar_bottom + scrollbar_height/2, 8, scrollbar_height),
+            arcade.color.GRAY
+        )
+
+        # Calculate thumb size and position
+        thumb_height = max((visible_items / total_items) * scrollbar_height, 20)
+        scroll_range = total_items - visible_items
+        scroll_percent = self.top_visible_index / scroll_range if scroll_range else 0
+        thumb_y = scrollbar_top - (scroll_percent * (scrollbar_height - thumb_height)) - thumb_height / 2
+
+        # Draw thumb
+        arcade.draw_rect_filled(
+            arcade.rect.XYWH(scrollbar_x, thumb_y, 8, thumb_height),
+            arcade.color.DARK_BLUE
+        )
+        arcade.draw_rect_filled(
+            arcade.rect.XYWH(scrollbar_x, thumb_y, 8, thumb_height),
+            arcade.color.GOLD
+        )
 
     def _draw_card(self, card, x, y, is_player):
         """Draw a card with appropriate styling"""
@@ -175,7 +341,7 @@ class PeekView(arcade.View):
         
         # Draw prediction
         arcade.draw_text(
-            f"{symbol} {label}", x, y,
+            f"{symbol} {label}", x-30, y,
             color, self.font_size,
             anchor_x="center", anchor_y="center"
         )
@@ -228,7 +394,7 @@ class PeekView(arcade.View):
         """Handle row hovering"""
         self.hovered_card = None
         for i in range(min(len(self.game.player_hand), 24)):
-            y_pos = SCREEN_HEIGHT - 120 - (i * self.row_height)
+            y_pos = SCREEN_HEIGHT - 120 - (i * self.row_height) - self.scroll_y
             if 50 <= x <= SCREEN_WIDTH-50 and y_pos-self.row_height/2 <= y <= y_pos+self.row_height/2:
                 self.hovered_card = i
                 break
@@ -245,7 +411,7 @@ class PeekView(arcade.View):
 
         # Card selection
         for i in range(min(len(self.game.player_hand), 24)):
-            y_pos = SCREEN_HEIGHT - 120 - (i * self.row_height)
+            y_pos = SCREEN_HEIGHT - 120 - (i * self.row_height) - self.scroll_y
             if 50 <= x <= SCREEN_WIDTH-50 and y_pos-self.row_height/2 <= y <= y_pos+self.row_height/2:
                 if self.selected_card_index is None:
                     self.selected_card_index = i
@@ -263,9 +429,38 @@ class PeekView(arcade.View):
         if self.selected_card_index is not None and (SCREEN_WIDTH//2-100 <= x <= SCREEN_WIDTH//2+100) and (25 <= y <= 55):
             self._prompt_swap()
 
+    def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
+        """Scroll through the list using the mouse wheel."""
+        max_index = len(self.game.player_hand) - 1
+
+        # Scroll up
+        if scroll_y > 0:
+            if self.secondary_selected_index > 0:
+                self.secondary_selected_index -= 1
+                if self.secondary_selected_index < self.top_visible_index:
+                    self.top_visible_index = max(0, self.top_visible_index - 1)
+
+        # Scroll down
+        elif scroll_y < 0:
+            if self.secondary_selected_index < max_index:
+                self.secondary_selected_index += 1
+                if self.secondary_selected_index >= self.top_visible_index + self.visible_items_count:
+                    self.top_visible_index = min(
+                        max_index - self.visible_items_count + 1,
+                        self.top_visible_index + 1
+                    )
+
     def _swap_cards(self, index1, index2):
-        """Swap two cards in player's deck"""
-        self.game.swap_player_cards(index1, index2)
+        """Swap two cards in player's deck with validation"""
+        if hasattr(self.game, 'swap_player_cards'):
+            try:
+                self.game.swap_player_cards(index1, index2)
+                # Optional: Add visual feedback here
+                swap_sound
+            except Exception as e:
+                print(f"Error swapping cards: {e}")
+        else:
+            print("Game instance doesn't support card swapping")
         self.selected_card_index = None
 
     def _prompt_swap(self):
@@ -277,9 +472,62 @@ class PeekView(arcade.View):
             self._swap_cards(self.selected_card_index, swap_with)
 
     def on_key_press(self, key, modifiers):
-        """Handle keyboard shortcuts"""
+        """Handle keyboard shortcuts and navigation"""
+        # Existing ESC and H key handling
         if key == arcade.key.ESCAPE:
             if hasattr(self.window, 'show_view'):
                 self.window.show_view("game")
             else:
                 arcade.get_window().show_view(self.previous_view)
+            return
+        
+        if key == arcade.key.H:
+            self.show_help = not self.show_help
+            return
+        
+        max_index = min(len(self.game.player_hand), 24) - 1
+        
+        if key == arcade.key.UP:
+            if self.secondary_selected_index > 0:
+                self.secondary_selected_index -= 1
+
+                if self.secondary_selected_index < self.top_visible_index:
+                    self.top_visible_index -= 1
+
+
+        elif key == arcade.key.DOWN:
+            if self.secondary_selected_index < len(self.game.player_hand) - 1:
+                self.secondary_selected_index += 1
+
+                if self.secondary_selected_index >= self.top_visible_index + self.visible_items_count:
+                    self.top_visible_index += 1
+        
+        elif key == arcade.key.ENTER or key == arcade.key.SPACE:
+            # Select or swap cards
+            if self.secondary_selected_index is not None:
+                if self.primary_selected_index is None:
+                    # First selection
+                    self.primary_selected_index = self.secondary_selected_index
+                    select_sound
+                else:
+                    # Perform swap
+                    self._swap_cards(self.primary_selected_index, self.secondary_selected_index)
+                    self.primary_selected_index = None
+                    self.secondary_selected_index = None
+        
+        elif key == arcade.key.LEFT:
+            # Jump to first card
+            self.secondary_selected_index = 0
+        
+        elif key == arcade.key.RIGHT:
+            # Jump to last card
+            self.secondary_selected_index = max_index
+        
+        elif key == arcade.key.ESCAPE:
+            # Cancel all selections
+            self.primary_selected_index = None
+            self.secondary_selected_index = None
+
+    def clamp_scroll(self):
+        max_scroll = max(0, len(self.game.player_hand) * self.row_height - (SCREEN_HEIGHT - 200))
+        self.scroll_y = max(0, min(self.scroll_y, max_scroll))

@@ -1,3 +1,5 @@
+# /game/war_game.py
+
 from typing import List
 from game.card import Card
 import random
@@ -39,8 +41,6 @@ class WarGame:
         """Set AI pressure through current skirmish"""
         if self.current_skirmish:
             self.current_skirmish.ai_skirmish_pressure = value
-    
-    # ... rest of the WarGame implementation remains the same ...
     
     def initialize_new_campaign(self):
         """Start a new campaign (series of wars)"""
@@ -101,12 +101,10 @@ class WarGame:
         
         if player_card.rank > ai_card.rank:
             self.current_hand.outcome = "win"
-            self.player_hand.extend([player_card, ai_card])
             history_msg = (f"You won: {player_card} beats {ai_card} "
                           f"(+{player_pressure} Pressure)")
         elif ai_card.rank > player_card.rank:
             self.current_hand.outcome = "loss"
-            self.ai_hand.extend([ai_card, player_card])
             history_msg = (f"You lost: {ai_card} beats {player_card} "
                           f"(AI +{ai_pressure} Pressure)")
         else:
@@ -220,12 +218,10 @@ class WarGame:
         
         if player_pressure > 0:  # Player won
             hand.outcome = "win"
-            self.player_hand.extend([player_card, ai_card])
             hand.history_entry = (f"You won: {player_card} beats {ai_card} "
                                 f"(+{player_pressure} Pressure)")
         elif ai_pressure > 0:  # AI won
             hand.outcome = "loss"
-            self.ai_hand.extend([ai_card, player_card])
             hand.history_entry = (f"You lost: {ai_card} beats {player_card} "
                                 f"(AI +{ai_pressure} Pressure)")
         else:  # Tie
@@ -252,3 +248,9 @@ class WarGame:
         elif self.ai_pressure > self.player_pressure:
             return "ai"
         return "tie"
+
+    def swap_player_cards(self, index1: int, index2: int):
+        """Swap two cards in the player's hand"""
+        if 0 <= index1 < len(self.player_hand) and 0 <= index2 < len(self.player_hand):
+            self.player_hand[index1], self.player_hand[index2] = \
+                self.player_hand[index2], self.player_hand[index1]

@@ -27,7 +27,7 @@ class PasswordEntryView(arcade.View):
         )
         
         # Password box
-        arcade.draw_rectangle_outline(
+        arcade.draw_rect_outline(
             SCREEN_WIDTH // 2,
             SCREEN_HEIGHT // 2,
             400,

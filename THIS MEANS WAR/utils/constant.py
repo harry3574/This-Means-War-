@@ -1,3 +1,5 @@
+import arcade
+
 SCREEN_WIDTH = 1440
 SCREEN_HEIGHT = 800
 CARD_WIDTH = 80
@@ -16,6 +18,8 @@ PROFILE_EMOJIS = [
     r"(＾ｖ＾)", r"(T⌓T)", r"(ノД`)・゜・。", r"(☞ﾟ∀ﾟ)☞", r"(*≧▽≦)", r"(*￣▽￣)b"
 ]
 
+swap_sound = arcade.load_sound(":resources:sounds/coin1.wav")
+select_sound = arcade.load_sound(":resources:sounds/upgrade1.wav")
 
 # Add near other constants
 SAVE_BUTTON_X = SCREEN_WIDTH - 140

@@ -277,7 +277,7 @@ class GameView(arcade.View):
         
         # Player deck status
         arcade.draw_rect_outline(
-            arcade.rect.XYWH(SCREEN_WIDTH/4, 150, 200, 50),
+            arcade.rect.XYWH(SCREEN_WIDTH/4, 150, 200, 20),
             arcade.color.WHITE,
         )
         arcade.draw_rect_filled(
@@ -358,6 +358,9 @@ class GameView(arcade.View):
         elif key == arcade.key.F9:  # Quick load
             #self.saver.load_game
             self.quick_load()
+
+        elif key == arcade.key.P:
+            self.window.show_view("peek")
             
     def reveal_cards(self):
         """Handle card revealing logic"""

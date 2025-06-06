@@ -6,3 +6,6 @@ __pycache__/
 test/
 /utils/war_game_saves.db
 THIS MEANS WAR/utils/war_game_saves.db
+/THIS MEANS WAR/views/__pycache__
+THIS MEANS WAR/views/__pycache__/peek_view.cpython-312.pyc
+THIS MEANS WAR/views/__pycache__/game_view.cpython-312.pyc
