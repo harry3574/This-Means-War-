@@ -35,31 +35,37 @@ class GameView(arcade.View):
 
         
     def _load_card_textures(self):
-        """Load card front textures for better visuals"""
+        """Load card front textures using correct naming convention"""
         card_fronts = {}
-        suits = ['hearts', 'diamonds', 'clubs', 'spades']
-        values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king', 'ace']
+        suits = ['Spades', 'Hearts', 'Clubs', 'Diamonds']
+        values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
         
         for suit in suits:
             for value in values:
-                key = f"{value}_of_{suit}"
+                key = f"{suit}{value}"
                 try:
-                    card_fronts[key] = arcade.load_texture(f":resources:images/cards/{key}.png")
-                except:
-                    # Fallback to blank card if texture not found
-                    card_fronts[key] = None
+                    card_fronts[key] = arcade.load_texture(f":resources:images/cards/card{key}.png")
+                except Exception as e:
+                    print(f"Could not load texture for card{key}.png: {e}")
+                    card_fronts[key] = None  # Fallback if needed
+
         return card_fronts
     
     def _get_card_texture(self, card):
         """Get the appropriate texture for a card"""
-        suit_map = {'♥': 'hearts', '♦': 'diamonds', '♣': 'clubs', '♠': 'spades'}
+        suit_map = {'♠': 'Spades', '♥': 'Hearts', '♣': 'Clubs', '♦': 'Diamonds'}
         value_map = {
-            'J': 'jack', 'Q': 'queen', 'K': 'king', 'A': 'ace',
-            '10': '10', '9': '9', '8': '8', '7': '7', '6': '6',
-            '5': '5', '4': '4', '3': '3', '2': '2'
+            '2': '2', '3': '3', '4': '4', '5': '5', '6': '6',
+            '7': '7', '8': '8', '9': '9', '10': '10',
+            'J': 'J', 'Q': 'Q', 'K': 'K', 'A': 'A'
         }
-        
-        key = f"{value_map[card.value]}_of_{suit_map[card.suit]}"
+
+        suit = suit_map.get(card.suit)
+        value = value_map.get(card.value)
+        if not suit or not value:
+            return None  # Handle bad input safely
+
+        key = f"{suit}{value}"
         return self.card_fronts.get(key)
 
     def _draw_pressure_status(self):

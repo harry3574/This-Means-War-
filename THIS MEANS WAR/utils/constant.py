@@ -27,3 +27,44 @@ LOAD_BUTTON_X = SCREEN_WIDTH - 240
 BUTTON_Y = 50
 BUTTON_WIDTH = 80
 BUTTON_HEIGHT = 30
+
+
+HIGH_CONTRAST = {
+    "text_primary": arcade.color.WHITE,
+    "text_secondary": arcade.color.LIGHT_GRAY,
+    "suit_spade": arcade.color.BLACK,
+    "suit_club": arcade.color.BLUE,
+    "suit_diamond": arcade.color.PINE_GREEN,
+    "suit_heart": arcade.color.RED,
+    "arrow": arcade.color.YELLOW,
+    "background": arcade.color.BLACK,
+}
+
+LOW_CONTRAST = {
+    "text_primary": arcade.color.DARK_GRAY,
+    "text_secondary": arcade.color.GRAY,
+    "suit_spade": arcade.color.GRAY,
+    "suit_club": arcade.color.DARK_GRAY,
+    "suit_diamond": arcade.color.BRICK_RED,
+    "suit_heart": arcade.color.INDIAN_RED,
+    "arrow": arcade.color.LIGHT_GRAY,
+    "background": arcade.color.LIGHT_GRAY,
+}
+
+# Mapping from Unicode symbols to theme keys
+suit_map = {
+    "♠": "suit_spade",
+    "♣": "suit_club",
+    "♦": "suit_diamond",
+    "♥": "suit_heart"
+}
+
+# Enhanced color scheme
+color_strong_win = arcade.color.GREEN
+color_weak_win = arcade.color.LIME_GREEN
+color_neutral = arcade.color.LIGHT_GRAY
+color_weak_loss = arcade.color.ORANGE
+color_strong_loss = arcade.color.RED
+color_suit_boost = arcade.color.SKY_BLUE
+color_suit_penalty = arcade.color.LIGHT_SALMON
+

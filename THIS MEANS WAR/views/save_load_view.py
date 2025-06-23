@@ -1,6 +1,5 @@
 # /views/save_load_view.py
 import arcade
-from typing import Optional
 from utils.constant import SCREEN_WIDTH, SCREEN_HEIGHT
 
 class SaveLoadView(arcade.View):

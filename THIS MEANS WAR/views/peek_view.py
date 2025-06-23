@@ -2,6 +2,7 @@ import arcade
 from arcade import Text
 from game.card import Card
 from utils.constant import *
+from utils.theme import get_color, set_theme
 
 class PeekView(arcade.View):
     def __init__(self, game, window=None):
@@ -33,15 +34,7 @@ class PeekView(arcade.View):
         self.scroll_bar_height = self.visible_items_count * self.row_height
         self.scroll_bar_width = 6
 
-    
-        # Enhanced color scheme
-        self.color_strong_win = arcade.color.GREEN
-        self.color_weak_win = arcade.color.LIME_GREEN
-        self.color_neutral = arcade.color.LIGHT_GRAY
-        self.color_weak_loss = arcade.color.ORANGE
-        self.color_strong_loss = arcade.color.RED
-        self.color_suit_boost = arcade.color.SKY_BLUE
-        self.color_suit_penalty = arcade.color.LIGHT_SALMON
+        set_theme("high")
         
         # Initialize UI
         self._init_ui()
@@ -92,54 +85,55 @@ class PeekView(arcade.View):
             # First scoring line - split into 3 parts
             Text("▲▲ +20+ pts", 
                 SCREEN_WIDTH//2 - 120, self.help_top - self.help_section_spacing - self.help_line_spacing,
-                self.color_strong_win, 14, anchor_x="center"),
+                color_strong_win, 14, anchor_x="center"),
             Text("▲ +10-19 pts", 
                 SCREEN_WIDTH//2, self.help_top - self.help_section_spacing - self.help_line_spacing,
-                self.color_weak_win, 14, anchor_x="center"),
+                color_weak_win, 14, anchor_x="center"),
             Text("■ Neutral (0-9)", 
                 SCREEN_WIDTH//2 + 120, self.help_top - self.help_section_spacing - self.help_line_spacing,
-                self.color_neutral, 14, anchor_x="center"),
+                color_neutral, 14, anchor_x="center"),
 
             # Second scoring line - split into 2 parts
             Text("▼ -10-19 pts", 
                 SCREEN_WIDTH//2 - 80, self.help_top - self.help_section_spacing - self.help_line_spacing*2,
-                self.color_weak_loss, 14, anchor_x="center"),
+                color_weak_loss, 14, anchor_x="center"),
             Text("▼▼ -20+ pts", 
                 SCREEN_WIDTH//2 + 80, self.help_top - self.help_section_spacing - self.help_line_spacing*2,
-                self.color_strong_loss, 14, anchor_x="center"),
+                color_strong_loss, 14, anchor_x="center"),
 
 
             # Suit effect explanations
             Text("Beats next suit (x1.5 bonus)", 
                 SCREEN_WIDTH//2, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*4, 
-                self.color_suit_boost, 14, anchor_x="center"),
+                color_suit_boost, 14, anchor_x="center"),
             Text("Loses to previous suit (x0.5 penalty)", 
                 SCREEN_WIDTH//2, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*5, 
-                self.color_suit_penalty, 14, anchor_x="center"),
+                color_suit_penalty, 14, anchor_x="center"),
             
             # Suit multipliers header
             Text("SUIT MULTIPLIERS", SCREEN_WIDTH//2, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*2, 
                 arcade.color.CYAN, 16, anchor_x="center"),
 
             # Individual suit relationship elements
-            Text("♠", SCREEN_WIDTH//2 - 160, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
-                arcade.color.WHITE, 28, anchor_x="center"),
-            Text(">", SCREEN_WIDTH//2 - 120, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
-                self.color_suit_boost, 20, anchor_x="center"),
-            Text("♣", SCREEN_WIDTH//2 - 80, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
-                arcade.color.LIGHT_GRAY, 28, anchor_x="center"),
-            Text(">", SCREEN_WIDTH//2 - 40, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
-                self.color_suit_boost, 20, anchor_x="center"),
-            Text("♦", SCREEN_WIDTH//2, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
-                arcade.color.LIGHT_RED_OCHRE, 28, anchor_x="center"),
-            Text(">", SCREEN_WIDTH//2 + 40, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
-                self.color_suit_boost, 20, anchor_x="center"),
-            Text("♥", SCREEN_WIDTH//2 + 80, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
-                arcade.color.RED, 28, anchor_x="center"),
-            Text(">", SCREEN_WIDTH//2 + 120, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
-                self.color_suit_boost, 20, anchor_x="center"),
-            Text("♠", SCREEN_WIDTH//2 + 160, self.help_top - self.help_section_spacing*2 - self.help_line_spacing*3,
-                arcade.color.WHITE, 28, anchor_x="center"),
+            Text("♠", SCREEN_WIDTH // 2 - 160, self.help_top - self.help_section_spacing * 2 - self.help_line_spacing * 3,
+                get_color("suit_spade"), 28, anchor_x="center"),
+            Text(">", SCREEN_WIDTH // 2 - 120, self.help_top - self.help_section_spacing * 2 - self.help_line_spacing * 3,
+                color_suit_boost, 20, anchor_x="center"),
+            Text("♣", SCREEN_WIDTH // 2 - 80, self.help_top - self.help_section_spacing * 2 - self.help_line_spacing * 3,
+                get_color("suit_club"), 28, anchor_x="center"),
+            Text(">", SCREEN_WIDTH // 2 - 40, self.help_top - self.help_section_spacing * 2 - self.help_line_spacing * 3,
+                color_suit_boost, 20, anchor_x="center"),
+            Text("♦", SCREEN_WIDTH // 2, self.help_top - self.help_section_spacing * 2 - self.help_line_spacing * 3,
+                get_color("suit_diamond"), 28, anchor_x="center"),
+            Text(">", SCREEN_WIDTH // 2 + 40, self.help_top - self.help_section_spacing * 2 - self.help_line_spacing * 3,
+                color_suit_boost, 20, anchor_x="center"),
+            Text("♥", SCREEN_WIDTH // 2 + 80, self.help_top - self.help_section_spacing * 2 - self.help_line_spacing * 3,
+                get_color("suit_heart"), 28, anchor_x="center"),
+            Text(">", SCREEN_WIDTH // 2 + 120, self.help_top - self.help_section_spacing * 2 - self.help_line_spacing * 3,
+                color_suit_boost, 20, anchor_x="center"),
+            Text("♠", SCREEN_WIDTH // 2 + 160, self.help_top - self.help_section_spacing * 2 - self.help_line_spacing * 3,
+                get_color("suit_spade"), 28, anchor_x="center"),
+
 
             # Controls
             Text("CONTROLS", SCREEN_WIDTH//2, self.help_top - self.help_section_spacing*3 - self.help_line_spacing*5, 
@@ -301,14 +295,21 @@ class PeekView(arcade.View):
 
     def _draw_card(self, card, x, y, is_player):
         """Draw a card with appropriate styling"""
-        color = arcade.color.CYAN if is_player else arcade.color.ORANGE
+        # Background color stays the same
+        background_color = arcade.color.CYAN if is_player else arcade.color.ORANGE
         arcade.draw_rect_filled(
             arcade.rect.XYWH(x, y, self.card_width, self.card_height),
-            color
+            background_color
         )
+
+        # Get color from theme based on card suit
+        suit_key = suit_map.get(card.suit, "text_primary")  # Fallback in case suit is invalid
+        text_color = get_color(suit_key)
+
+        # Draw the card text (value + suit) in themed color
         arcade.draw_text(
             f"{card.value}{card.suit}", x, y,
-            arcade.color.BLACK, self.font_size,
+            text_color, self.font_size,
             anchor_x="center", anchor_y="center"
         )
 
@@ -319,23 +320,23 @@ class PeekView(arcade.View):
         
         # Determine advantage level
         if net_pressure >= 20:
-            color = self.color_strong_win
+            color = color_strong_win
             symbol = "▲▲"
             label = f"Strong +{net_pressure}"
         elif net_pressure >= 10:
-            color = self.color_weak_win
+            color = color_weak_win
             symbol = "▲"
             label = f"Good +{net_pressure}"
         elif net_pressure <= -20:
-            color = self.color_strong_loss
+            color = color_strong_loss
             symbol = "▼▼"
             label = f"Bad {net_pressure}"
         elif net_pressure <= -10:
-            color = self.color_weak_loss
+            color = color_weak_loss
             symbol = "▼"
             label = f"Risky {net_pressure}"
         else:
-            color = self.color_neutral
+            color = color_neutral
             symbol = "■"
             label = f"Even {net_pressure}"
         
@@ -351,13 +352,13 @@ class PeekView(arcade.View):
         advantage = player_card.get_suit_advantage(ai_card.suit)
         
         if advantage > 1.0:
-            color = self.color_suit_boost
+            color = color_suit_boost
             effect = f"Boost x{advantage:.1f}"
         elif advantage < 1.0:
-            color = self.color_suit_penalty
+            color = color_suit_penalty
             effect = f"Penalty x{advantage:.1f}"
         else:
-            color = self.color_neutral
+            color = color_neutral
             effect = "Neutral"
         
         arcade.draw_text(
