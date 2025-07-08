@@ -68,3 +68,22 @@ color_strong_loss = arcade.color.RED
 color_suit_boost = arcade.color.SKY_BLUE
 color_suit_penalty = arcade.color.LIGHT_SALMON
 
+
+# !! Peek_view !!
+row_height = 40
+card_width = 80
+card_height = 30  # Flatter cards for more vertical space
+font_size = 14
+
+visible_items_count = 14  # Always show 14 rows
+
+# Scrollbar track position and size
+scrollbar_x = SCREEN_WIDTH - 20
+scrollbar_top = SCREEN_HEIGHT - 120
+scrollbar_height = visible_items_count * row_height
+scrollbar_bottom = scrollbar_top - scrollbar_height
+# !! Peek_view !!
+
+INPUT_WIDTH = 300
+INPUT_HEIGHT = 40
+FIELD_SPACING = 70

@@ -1,4 +1,3 @@
-from email import utils
 import random
 import arcade
 from game.war_game import WarGame

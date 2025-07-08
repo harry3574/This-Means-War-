@@ -109,7 +109,7 @@ class GameSaver:
             """, (limit,))
             return [dict(row) for row in cursor.fetchall()]
     
-        # NEW: Enhanced delete methods
+    # NEW: Enhanced delete methods
     def delete_save(self, save_id: int) -> bool:
         """Delete a save and log the action"""
         try:

@@ -11,28 +11,17 @@ class PeekView(arcade.View):
         self.window = window
         self.selected_card_index = None
         self.card_back = arcade.load_texture(":resources:images/cards/cardBack_red2.png")
-        self.row_height = 40  # Increased from 25 for better spacing
-        self.card_width = 80
-        self.card_height = 30  # Flatter cards for more vertical space
-        self.font_size = 14
+        
         self.hovered_card = None
         self.show_help = False
         self.last_selected_index = None
         self.primary_selected_index = None  # Track first selection
         self.secondary_selected_index = None  # Track current navigation
 
-        self.visible_items_count = 14  # Always show 14 rows
         self.top_visible_index = 0     # Index of the top card currently shown
         self.secondary_selected_index = 0  # Index of the cursor (selected row)
 
-        self.scroll_y = 0  # Scroll offset in pixels
-
         self.START_Y = SCREEN_HEIGHT - 120
-
-        self.scroll_bar_x = SCREEN_WIDTH - 20  # Right margin
-        self.scroll_bar_top = SCREEN_HEIGHT - 120
-        self.scroll_bar_height = self.visible_items_count * self.row_height
-        self.scroll_bar_width = 6
 
         set_theme("high")
         
@@ -173,6 +162,7 @@ class PeekView(arcade.View):
         # Draw controls
         self._draw_controls()
 
+        # Draw scrollbar
         self._draw_scrollbar()
         
         # Help overlay if active
@@ -197,45 +187,37 @@ class PeekView(arcade.View):
 
     def _draw_matchups(self):
         """Draw all card matchups with clear spacing and persistent selection"""
-        """
-        for i, (player_card, ai_card) in enumerate(zip(
-            self.game.player_hand[:24],  # Limit to first 24 for space
-            self.game.ai_hand[:24]
-        )):
-        """
 
-        visible_range = range(self.top_visible_index, min(self.top_visible_index + self.visible_items_count, len(self.game.player_hand)))
+        visible_range = range(self.top_visible_index, min(self.top_visible_index + visible_items_count, len(self.game.player_hand)))
 
         for draw_index, i in enumerate(visible_range):
             player_card = self.game.player_hand[i]
             ai_card = self.game.ai_hand[i]
 
-            y_pos = self.START_Y - draw_index * self.row_height  # ❗️FIXED positions
+            # Calculate y position with scroll
+            y_pos = self.START_Y - draw_index * row_height  # ❗️FIXED positions
 
-            # Calculate y position with scroll offset applied
-            #y_pos = SCREEN_HEIGHT - 120 - (i * self.row_height) - self.scroll_y
-            
             # Skip drawing if completely off screen to optimize
-            if y_pos < -self.row_height or y_pos > SCREEN_HEIGHT + self.row_height:
+            if y_pos < -row_height or y_pos > SCREEN_HEIGHT + row_height:
                 continue
             
             # Highlight logic
             if i == self.primary_selected_index:
                 # Primary selection (persistent until swap/cancel)
                 arcade.draw_rect_filled(
-                    arcade.rect.XYWH(SCREEN_WIDTH/2, y_pos, SCREEN_WIDTH-100, self.row_height-5),
+                    arcade.rect.XYWH(SCREEN_WIDTH/2, y_pos, SCREEN_WIDTH-100, row_height-5),
                     (100, 0, 100, 150)  # Purple for primary selection
                 )
             elif i == self.secondary_selected_index:
                 # Current navigation position
                 arcade.draw_rect_filled(
-                    arcade.rect.XYWH(SCREEN_WIDTH/2, y_pos, SCREEN_WIDTH-100, self.row_height-5),
+                    arcade.rect.XYWH(SCREEN_WIDTH/2, y_pos, SCREEN_WIDTH-100, row_height-5),
                     (50, 50, 0, 150)  # Yellow for current position
                 )
             elif i == self.hovered_card:
                 # Mouse hover effect
                 arcade.draw_rect_filled(
-                    arcade.rect.XYWH(SCREEN_WIDTH/2, y_pos, SCREEN_WIDTH-100, self.row_height-5),
+                    arcade.rect.XYWH(SCREEN_WIDTH/2, y_pos, SCREEN_WIDTH-100, row_height-5),
                     (25, 25, 25, 100))
             
             # Player card
@@ -260,16 +242,9 @@ class PeekView(arcade.View):
     def _draw_scrollbar(self):
         """Draws a vertical scrollbar on the right of the matchup list."""
         total_items = len(self.game.player_hand)
-        visible_items = self.visible_items_count
 
-        if total_items <= visible_items:
+        if total_items <= visible_items_count:
             return  # No need for a scrollbar
-
-        # Scrollbar track position and size
-        scrollbar_x = SCREEN_WIDTH - 20
-        scrollbar_top = SCREEN_HEIGHT - 120
-        scrollbar_height = visible_items * self.row_height
-        scrollbar_bottom = scrollbar_top - scrollbar_height
 
         # Draw track
         arcade.draw_rect_filled(
@@ -278,8 +253,8 @@ class PeekView(arcade.View):
         )
 
         # Calculate thumb size and position
-        thumb_height = max((visible_items / total_items) * scrollbar_height, 20)
-        scroll_range = total_items - visible_items
+        thumb_height = max((visible_items_count / total_items) * scrollbar_height, 20)
+        scroll_range = total_items - visible_items_count
         scroll_percent = self.top_visible_index / scroll_range if scroll_range else 0
         thumb_y = scrollbar_top - (scroll_percent * (scrollbar_height - thumb_height)) - thumb_height / 2
 
@@ -298,7 +273,7 @@ class PeekView(arcade.View):
         # Background color stays the same
         background_color = arcade.color.CYAN if is_player else arcade.color.ORANGE
         arcade.draw_rect_filled(
-            arcade.rect.XYWH(x, y, self.card_width, self.card_height),
+            arcade.rect.XYWH(x, y, card_width, card_height),
             background_color
         )
 
@@ -309,7 +284,7 @@ class PeekView(arcade.View):
         # Draw the card text (value + suit) in themed color
         arcade.draw_text(
             f"{card.value}{card.suit}", x, y,
-            text_color, self.font_size,
+            text_color, font_size,
             anchor_x="center", anchor_y="center"
         )
 
@@ -343,7 +318,7 @@ class PeekView(arcade.View):
         # Draw prediction
         arcade.draw_text(
             f"{symbol} {label}", x-30, y,
-            color, self.font_size,
+            color, font_size,
             anchor_x="center", anchor_y="center"
         )
 
@@ -363,7 +338,7 @@ class PeekView(arcade.View):
         
         arcade.draw_text(
             effect, x, y,
-            color, self.font_size,
+            color, font_size,
             anchor_x="center", anchor_y="center"
         )
 
@@ -395,8 +370,8 @@ class PeekView(arcade.View):
         """Handle row hovering"""
         self.hovered_card = None
         for i in range(min(len(self.game.player_hand), 24)):
-            y_pos = SCREEN_HEIGHT - 120 - (i * self.row_height) - self.scroll_y
-            if 50 <= x <= SCREEN_WIDTH-50 and y_pos-self.row_height/2 <= y <= y_pos+self.row_height/2:
+            y_pos = SCREEN_HEIGHT - 120 - (i * row_height) - self.scroll_y
+            if 50 <= x <= SCREEN_WIDTH-50 and y_pos-row_height/2 <= y <= y_pos+row_height/2:
                 self.hovered_card = i
                 break
 
@@ -405,15 +380,15 @@ class PeekView(arcade.View):
         # Back button handling - use window reference directly
         if (SCREEN_WIDTH-160 <= x <= SCREEN_WIDTH-40) and (25 <= y <= 55):
             if hasattr(self.window, 'show_view'):
-                self.window.show_view("game")  # Use view name
+                self.window.show_view("game")
             else:
                 # Fallback if window reference isn't available
-                arcade.get_window().show_view(self.previous_view)  # You'll need to store previous_view
+                arcade.get_window().show_view(self.previous_view) 
 
         # Card selection
         for i in range(min(len(self.game.player_hand), 24)):
-            y_pos = SCREEN_HEIGHT - 120 - (i * self.row_height) - self.scroll_y
-            if 50 <= x <= SCREEN_WIDTH-50 and y_pos-self.row_height/2 <= y <= y_pos+self.row_height/2:
+            y_pos = SCREEN_HEIGHT - 120 - (i * row_height) - self.scroll_y
+            if 50 <= x <= SCREEN_WIDTH-50 and y_pos-row_height/2 <= y <= y_pos+row_height/2:
                 if self.selected_card_index is None:
                     self.selected_card_index = i
                 else:
@@ -445,9 +420,9 @@ class PeekView(arcade.View):
         elif scroll_y < 0:
             if self.secondary_selected_index < max_index:
                 self.secondary_selected_index += 1
-                if self.secondary_selected_index >= self.top_visible_index + self.visible_items_count:
+                if self.secondary_selected_index >= self.top_visible_index + visible_items_count:
                     self.top_visible_index = min(
-                        max_index - self.visible_items_count + 1,
+                        max_index - visible_items_count + 1,
                         self.top_visible_index + 1
                     )
 
@@ -500,7 +475,7 @@ class PeekView(arcade.View):
             if self.secondary_selected_index < len(self.game.player_hand) - 1:
                 self.secondary_selected_index += 1
 
-                if self.secondary_selected_index >= self.top_visible_index + self.visible_items_count:
+                if self.secondary_selected_index >= self.top_visible_index + visible_items_count:
                     self.top_visible_index += 1
         
         elif key == arcade.key.ENTER or key == arcade.key.SPACE:
@@ -530,5 +505,5 @@ class PeekView(arcade.View):
             self.secondary_selected_index = None
 
     def clamp_scroll(self):
-        max_scroll = max(0, len(self.game.player_hand) * self.row_height - (SCREEN_HEIGHT - 200))
+        max_scroll = max(0, len(self.game.player_hand) * row_height - (SCREEN_HEIGHT - 200))
         self.scroll_y = max(0, min(self.scroll_y, max_scroll))

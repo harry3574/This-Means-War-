@@ -23,8 +23,8 @@ class WarGameWindow(arcade.Window):
         self.views["profile"] = ProfileView()
         self.views["menu"] = MenuView()
         self.views["delete"] = DeleteView()
-        self.views["save_load"] = None
-        self.views["password"] = None
+        #self.views["save_load"] = None
+        #self.views["password"] = None
         self.views["create_profile"] = ProfileCreationView()
         
         # Set window references
@@ -35,10 +35,7 @@ class WarGameWindow(arcade.Window):
     def show_view(self, view_name: str, *args, **kwargs):
         """Show a view by name with optional arguments"""
         try:
-            # Special case for SaveLoadView which needs the game_view reference
-            if view_name == "save_load" and self.views[view_name] is None:
-                from views.save_load_view import SaveLoadView
-                self.views[view_name] = SaveLoadView(self.views["game"], *args, **kwargs)
+
             
             view = self.views[view_name]
             super().show_view(view)

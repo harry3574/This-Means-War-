@@ -1,12 +1,8 @@
 # views/profile_creation_view.py
 import arcade
-from utils.constant import SCREEN_WIDTH, SCREEN_HEIGHT
+from utils.constant import SCREEN_WIDTH, SCREEN_HEIGHT, FIELD_SPACING, INPUT_HEIGHT, INPUT_WIDTH
 from utils.saves import GameSaver
 from utils.cursor import BlinkingCursor
-
-INPUT_WIDTH = 300
-INPUT_HEIGHT = 40
-FIELD_SPACING = 70
 
 class ProfileCreationView(arcade.View):
     def __init__(self, must_create: bool = False):
@@ -160,8 +156,7 @@ class ProfileCreationView(arcade.View):
         elif key == arcade.key.ENTER:
             self.create_profile()
         elif key == arcade.key.ESCAPE and not self.must_create:
-            from views.menu_view import MenuView
-            self.window.show_view(MenuView())
+            self.window.show_view("menu")
         elif key == arcade.key.P and (modifiers & arcade.key.MOD_CTRL):
             self.show_password = not self.show_password
         elif key == arcade.key.BACKSPACE:

@@ -243,8 +243,7 @@ class ProfileView(arcade.View):
             elif self.mode == "password_prompt":
                 self.mode = "select"
             else:
-                from views.menu_view import MenuView
-                self.window.show_view(MenuView())
+                self.window.show_view("menu")
 
         elif key == arcade.key.TAB:
             if self.mode == "create":
@@ -354,11 +353,6 @@ class ProfileView(arcade.View):
             self.window.show_view(view)
         else:
             print("[DEBUG] Returning to menu...")
-            from views.menu_view import MenuView
-
-            # Replace the menu view with a fresh instance (profile is now updated)
-            self.window.views["menu"] = MenuView()
-            self.window.views["menu"].window = self.window  # set the window reference manually
             self.window.show_view("menu")
         return True
 
