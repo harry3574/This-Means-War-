@@ -1,19 +1,17 @@
 import random
+from typing import Optional
 import arcade
 from game.war_game import WarGame
 from utils.constant import *
 from utils.saves import GameSaver
 
 class GameView(arcade.View):
-    def __init__(self, window=None, seed=None):
+    def __init__(self, window=None, game: Optional[WarGame] = None):
         super().__init__()
-        self.game = WarGame()
         self.window = window
+        self.game = game if game else WarGame()
         self.current_profile = None
         self.saver = GameSaver()
-
-        self.seed = seed or random.randint(0, 999999)
-        random.seed(self.seed)
 
         # Inherit profile from window
         if hasattr(window, 'current_profile'):
@@ -481,37 +479,6 @@ class GameView(arcade.View):
                 50, 480 - i * 30,
                 color, 14
             )
-    
-    def quick_save(self):
-        if not hasattr(self.window, 'current_profile'):
-            print("No profile selected - cannot save")
-            return
-        
-        saver = GameSaver()
-        success, message = saver.save_game(self.game, "quicksave")
-        print(message)  # Or show this in-game
-        
-        # Visual feedback
-        self.show_notification(message)
-
-    def quick_load(self):
-        if not hasattr(self.window, 'current_profile'):
-            print("No profile selected - cannot load")
-            return
-        
-        saver = GameSaver()
-        saves = saver.list_saves()
-        if not saves:
-            print("No saves found for this profile")
-            return
-        
-        # Load most recent save
-        loaded_game = saver.load_game(saves[0]['id'])
-        if loaded_game:
-            self.game = loaded_game
-            self.show_notification("Game loaded successfully")
-        else:
-            self.show_notification("Failed to load game")
 
     def show_notification(self, message: str):
         """Helper to show temporary status messages"""
@@ -533,24 +500,23 @@ class GameView(arcade.View):
             print("Game saved successfully")
         else:
             print(f"Save failed: {message}")
+            print("Quick Save called from Not GameView")
 
     def quick_load(self):
-        """Handle quick load functionality"""
-        if not hasattr(self.window, 'current_profile') or not self.window.current_profile:
-            print("Cannot load - no profile selected")
+        if not hasattr(self.window, 'current_profile'):
+            print("No profile selected - cannot load")
             return
-            
-        self.saver.current_profile_id = self.window.current_profile['id']
-        saves = self.saver.list_saves()
+        
+        saver = GameSaver()
+        saves = saver.list_saves()
         if not saves:
             print("No saves found for this profile")
             return
-            
-        # Find most recent save
-        latest_save = max(saves, key=lambda x: x['timestamp'])
-        loaded_game = self.saver.load_game(latest_save['id'])
+        
+        # Load most recent save
+        loaded_game = saver.load_game(saves[0]['id'])
         if loaded_game:
             self.game = loaded_game
-            print("Game loaded successfully")
+            self.show_notification("Game loaded successfully")
         else:
-            print("Failed to load game")
+            self.show_notification("Failed to load game")

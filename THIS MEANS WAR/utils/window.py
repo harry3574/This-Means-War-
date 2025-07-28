@@ -35,18 +35,26 @@ class WarGameWindow(arcade.Window):
     def show_view(self, view_name: str, *args, **kwargs):
         """Show a view by name with optional arguments"""
         try:
-
-            
             view = self.views[view_name]
+
+            # Allow passing a new WarGame instance to the GameView
+            if view_name == "game" and "game_instance" in kwargs:
+                view.game = kwargs["game_instance"]
+
             super().show_view(view)
             self._debug_current_view()
         except KeyError:
             available = list(self.views.keys())
             print(f"Error: View '{view_name}' not found. Available views: {available}")
             arcade.exit()
-        
+
     def _debug_current_view(self):
         """Print current view information to console"""
         print(f"\n[DEBUG] Current View: {self.current_view}")
         print(f"[DEBUG] Profile: {getattr(self, 'current_profile', 'None')}")
         print(f"[DEBUG] Views loaded: {list(self.views.keys())}\n")
+
+    def load_game_view(self, loaded_game):
+        """Create a new GameView with the loaded game and switch to it"""
+        self.views["game"] = GameView(self, loaded_game)
+        self.show_view("game")

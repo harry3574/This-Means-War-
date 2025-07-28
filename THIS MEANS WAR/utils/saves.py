@@ -62,6 +62,9 @@ class GameSaver:
                     war_state TEXT NOT NULL,
                     skirmish_state TEXT NOT NULL,
                     hand_state TEXT NOT NULL,
+                    player_pressure INTEGER NOT NULL DEFAULT 0,
+                    ai_pressure INTEGER NOT NULL DEFAULT 0,
+                    seed INTEGER,
                     FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE,
                     UNIQUE (profile_id, save_name)
                 )
@@ -260,11 +263,12 @@ class GameSaver:
                 cursor.execute("""
                     INSERT OR REPLACE INTO saves (
                         profile_id, save_name, player_hand, ai_hand,
-                        player_discard, ai_discard, game_phase,
-                        war_state, skirmish_state, hand_state
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        player_discard, ai_discard,
+                        game_phase, war_state, skirmish_state, hand_state,
+                        player_pressure, ai_pressure, seed
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    self.current_profile_id, 
+                    self.current_profile_id,
                     save_name.strip(),
                     self._serialize_cards(game.player_hand),
                     self._serialize_cards(game.ai_hand),
@@ -273,7 +277,10 @@ class GameSaver:
                     game.game_phase.name,
                     self._serialize_state(game.current_war),
                     self._serialize_state(game.current_skirmish),
-                    self._serialize_state(game.current_hand)
+                    self._serialize_state(game.current_hand),
+                    game.player_pressure,
+                    game.ai_pressure,
+                    game.seed
                 ))
                 conn.commit()
                 return True, f"Game saved as '{save_name}'"
@@ -298,7 +305,7 @@ class GameSaver:
                 # Update profile last played time
                 self.set_current_profile(result["profile_id"])
                 
-                game = WarGame()
+                game = WarGame(start_new=False)
                 game.player_hand = self._deserialize_cards(result["player_hand"])
                 game.ai_hand = self._deserialize_cards(result["ai_hand"])
                 game.player_discard = self._deserialize_cards(result["player_discard"])
@@ -307,7 +314,10 @@ class GameSaver:
                 game.current_war = self._deserialize_state(result["war_state"], War)
                 game.current_skirmish = self._deserialize_state(result["skirmish_state"], Skirmish)
                 game.current_hand = self._deserialize_state(result["hand_state"], Hand)
-                
+                game.player_pressure = result["player_pressure"]
+                game.ai_pressure = result["ai_pressure"]
+                game.seed = int(result["seed"]) if result["seed"] is not None else None
+        
                 return game
         except Exception as e:
             logging.error(f"Error loading game: {e}")

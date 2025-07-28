@@ -6,7 +6,7 @@ import random
 from game.game_states import Hand, Skirmish, War, GamePhase
 
 class WarGame:
-    def __init__(self):
+    def __init__(self, start_new: bool = True):
         self.deck: List[Card] = []
         self.player_hand: List[Card] = []
         self.ai_hand: List[Card] = []
@@ -18,7 +18,11 @@ class WarGame:
         self.current_hand: Hand = None
         self.game_phase: GamePhase = GamePhase.HAND
         
-        self.initialize_new_campaign()
+        if start_new:
+            self.initialize_new_campaign()
+
+        self.seed = random.randint(0, 999999)
+        random.seed(self.seed)
     
     @property
     def player_pressure(self):

@@ -230,9 +230,8 @@ class MenuView(arcade.View):
         loaded_game = self.saver.load_game(selected_save['id'])
         
         if loaded_game:
-            game_view = GameView()
-            game_view.game = loaded_game
-            self.window.show_view("game")
+            self.window.load_game_view(loaded_game)
+
 
     def on_mouse_press(self, x, y, button, modifiers):
         """Handle mouse clicks for buttons"""

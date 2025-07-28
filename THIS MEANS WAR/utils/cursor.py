@@ -1,5 +1,4 @@
 # utils/ui.py
-
 import time
 
 class BlinkingCursor:

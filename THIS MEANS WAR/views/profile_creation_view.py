@@ -217,7 +217,8 @@ class ProfileCreationView(arcade.View):
 
         if success:
             profiles = self.saver.list_profiles()
-            new_profile = next(p for p in profiles if p['name'] == self.name_input)
+            name = self.name_input.strip().lower()
+            new_profile = next((p for p in profiles if p['name'].strip().lower() == name), None)
             self.saver.current_profile_id = new_profile['id']
 
             if self.must_create:
